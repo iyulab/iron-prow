@@ -19,5 +19,7 @@
     <PackageVersion Include="IronHive.Core" Version="0.7.8" />
     <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.7.8" />
     <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.7.8" />
+    <!-- LMSupply local-inference packages -->
+    <PackageVersion Include="LMSupply.Generator" Version="0.35.1" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>IronProw.LMSupply</PackageId>
+    <Description>iron-prow local-provider safety adapter: model-ID preflight, readiness gate, and length-bounding for lm-supply local inference.</Description>
+    <PackageTags>llm;safe-inference;local;lm-supply;iron-prow</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../IronProw.Core/IronProw.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="LMSupply.Generator" />
+  </ItemGroup>
+</Project>

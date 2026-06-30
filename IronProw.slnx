@@ -3,11 +3,13 @@
     <Project Path="src/IronProw.Core/IronProw.Core.csproj" />
     <Project Path="src/IronProw.IronHive/IronProw.IronHive.csproj" />
     <Project Path="src/IronProw.FluxGuard/IronProw.FluxGuard.csproj" />
+    <Project Path="src/IronProw.LMSupply/IronProw.LMSupply.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/IronProw.Core.Tests/IronProw.Core.Tests.csproj" />
     <Project Path="tests/IronProw.Architecture.Tests/IronProw.Architecture.Tests.csproj" />
     <Project Path="tests/IronProw.IronHive.Tests/IronProw.IronHive.Tests.csproj" />
     <Project Path="tests/IronProw.FluxGuard.Tests/IronProw.FluxGuard.Tests.csproj" />
+    <Project Path="tests/IronProw.LMSupply.Tests/IronProw.LMSupply.Tests.csproj" />
   </Folder>
 </Solution>
