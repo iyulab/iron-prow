@@ -6,3 +6,7 @@ obj/
 *.suo
 .idea/
 *.DS_Store
+
+# stray test-output scratch (must never be committed)
+*-output.txt
+test-output.txt
