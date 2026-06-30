@@ -42,4 +42,22 @@ public class LocalSafetyChatClientTests
 
         captured!.MaxOutputTokens.Should().Be(512);
     }
+
+    [Fact]
+    public async Task Does_not_override_explicit_max_output_tokens()
+    {
+        var captured = (ChatOptions?)null;
+        var inner = Substitute.For<IChatClient>();
+        inner.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Do<ChatOptions?>(o => captured = o), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok"))));
+        var probe = Substitute.For<IReadinessProbe>();
+        probe.IsReadyAsync(Arg.Any<CancellationToken>()).Returns(new ValueTask<bool>(true));
+        probe.GetAvailableModelIdsAsync(Arg.Any<CancellationToken>())
+            .Returns(new ValueTask<IReadOnlyList<string>>(new[] { "gemma-3" }));
+
+        var sut = new LocalSafetyChatClient(inner, new LocalSafetyOptions { DefaultMaxOutputTokens = 512 }, probe);
+        await sut.GetResponseAsync([new(ChatRole.User, "hi")], new ChatOptions { ModelId = "gemma-3", MaxOutputTokens = 4096 });
+
+        captured!.MaxOutputTokens.Should().Be(4096);
+    }
 }
