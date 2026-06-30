@@ -66,17 +66,18 @@ var response = await chat.GetResponseAsync("Hello");
 
 ### B. Local-provider safety (lm-supply / ONNX / DirectML)
 
-로컬 추론 클라이언트를 iron-prow 안전 레이어로 감싼다.
+로컬 추론을 iron-prow 안전 레이어로 감싼다. lm-supply 생성자(`IGeneratorModel`/`ITextGenerator`)를 **그대로** 넘기면 iron-prow가 내부 `GeneratorChatClient` 브리지로 `IChatClient`에 적응시킨다 — 소비자가 브리지를 직접 작성할 필요가 없다.
 
 ```csharp
 using IronProw.Core;
 using IronProw.LMSupply;
 using IronProw.FluxGuard;
+using LMSupply.Generator;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
-// rawClient: IChatClient 브리지 (예: IronHive.Host.Core에서 구성).
-//            lm-supply는 IChatClient를 직접 노출하지 않으므로 호출자가 브리지를 준비한다.
+// generator: lm-supply가 로드한 IGeneratorModel/ITextGenerator (생명주기는 호출자 소유).
+//            예: var generator = await LocalGenerator.LoadAsync("gguf:default", options, null, ct);
 // probe:     IReadinessProbe — 모델 로드 상태를 보고하는 구현체.
 //            lm-supply GeneratorPool 기반은 GeneratorPoolProbe를 사용한다.
 //            GeneratorPool 없이 LoadAsync로 단일 모델을 직접 로드하는 경우
@@ -85,7 +86,7 @@ services.AddIronProw()
         .AddLMSupplyLocal(
             id: "local-phi3",
             priority: 20,
-            rawClient: rawClient,
+            generator: generator,
             probe: probe,
             options: new LocalSafetyOptions { DefaultMaxOutputTokens = 1024 })
         .UseFluxGuard();
@@ -94,6 +95,7 @@ IChatClient chat = host.Services.GetRequiredService<IChatClient>();
 ```
 
 `AddLMSupplyLocal`이 제공하는 safety:
+- **bridge** — `GeneratorChatClient`가 lm-supply 생성자를 `IChatClient`로 적응(role 매핑, `MaxOutputTokens`→`MaxNewTokens`, sampler/tool 전파, streaming flatten). 이미 브리지된 `IChatClient`를 보유한 호출자(예: ironhive-host)는 `AddLMSupplyLocal(..., IChatClient rawClient, ...)` 오버로드를 쓸 수 있다.
 - **model-ID preflight** — `IReadinessProbe.GetAvailableModelIdsAsync`로 모델 존재 검증
 - **readiness gate** — `IReadinessProbe.IsReadyAsync`로 로드 완료 확인
 - **length-bounding** — `LocalSafetyOptions.DefaultMaxOutputTokens` (미설정 호출에 자동 적용, 기본 512)
@@ -106,7 +108,7 @@ IChatClient chat = host.Services.GetRequiredService<IChatClient>();
 services.AddIronProw()
         .AddIronHiveOpenAI("openai", priority: 10, "gpt-4o",
             cfg => cfg.ApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")!)
-        .AddLMSupplyLocal("local", priority: 20, rawClient, probe)
+        .AddLMSupplyLocal("local", priority: 20, generator, probe)
         .UseFluxGuard()
         .Configure(opt =>
         {

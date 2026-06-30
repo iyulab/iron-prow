@@ -1,4 +1,5 @@
 using IronProw.Core;
+using LMSupply.Generator.Abstractions;
 using Microsoft.Extensions.AI;
 
 namespace IronProw.LMSupply;
@@ -9,6 +10,38 @@ namespace IronProw.LMSupply;
 public static class LMSupplyExtensions
 {
     /// <summary>
+    /// Registers a <see cref="ProviderKind.Local"/> candidate backed by a raw lm-supply
+    /// <see cref="ITextGenerator"/>. The generator is bridged to <see cref="IChatClient"/> via
+    /// <see cref="GeneratorChatClient"/> and wrapped in a <see cref="LocalSafetyChatClient"/>, so
+    /// consumers (e.g. textree) need only supply the loaded generator — no hand-rolled bridge.
+    /// </summary>
+    /// <param name="builder">The iron-prow builder.</param>
+    /// <param name="id">Unique provider id for the gateway registry.</param>
+    /// <param name="priority">Selection priority — higher wins.</param>
+    /// <param name="generator">
+    /// A pre-loaded lm-supply generator. Its lifecycle (load/dispose) is owned by the caller; the
+    /// gateway never disposes it.
+    /// </param>
+    /// <param name="probe">Readiness and model-availability probe for the local provider.</param>
+    /// <param name="options">Safety options; defaults are used when <see langword="null"/>.</param>
+    /// <returns>The same builder for fluent chaining.</returns>
+    public static IronProwBuilder AddLMSupplyLocal(
+        this IronProwBuilder builder,
+        string id,
+        int priority,
+        ITextGenerator generator,
+        IReadinessProbe probe,
+        LocalSafetyOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(generator);
+        ArgumentNullException.ThrowIfNull(probe);
+        var safetyOptions = options ?? new LocalSafetyOptions();
+        return builder.AddProvider(id, ProviderKind.Local, priority,
+            _ => new LocalSafetyChatClient(new GeneratorChatClient(generator), safetyOptions, probe));
+    }
+
+    /// <summary>
     /// Registers a <see cref="ProviderKind.Local"/> candidate whose <see cref="IChatClient"/> is
     /// <paramref name="rawClient"/> wrapped in a <see cref="LocalSafetyChatClient"/>.
     /// </summary>
@@ -16,11 +49,11 @@ public static class LMSupplyExtensions
     /// <param name="id">Unique provider id for the gateway registry.</param>
     /// <param name="priority">Selection priority — higher wins.</param>
     /// <param name="rawClient">
-    /// Pre-bridged <see cref="IChatClient"/> backed by lm-supply.
-    /// lm-supply does not natively expose <see cref="IChatClient"/>; callers are responsible for
-    /// constructing the bridge (e.g. via the adapter in <c>IronHive.Host.Core</c>) before passing
-    /// it here. This avoids a layering violation between <c>IronProw.LMSupply</c> (Tier 2) and
-    /// <c>ironhive-host</c> (Tier 3).
+    /// Pre-bridged <see cref="IChatClient"/> backed by lm-supply. Prefer the
+    /// <see cref="AddLMSupplyLocal(IronProwBuilder, string, int, ITextGenerator, IReadinessProbe, LocalSafetyOptions?)"/>
+    /// overload, which bridges a raw <see cref="ITextGenerator"/> via <see cref="GeneratorChatClient"/> and
+    /// removes the need for consumers to hand-roll the bridge. This overload remains for callers that
+    /// already hold a bridged client (e.g. ironhive-host's own adapter).
     /// </param>
     /// <param name="probe">Readiness and model-availability probe for the local provider.</param>
     /// <param name="options">Safety options; defaults are used when <see langword="null"/>.</param>
