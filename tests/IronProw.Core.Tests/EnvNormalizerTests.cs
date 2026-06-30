@@ -28,4 +28,15 @@ public class EnvNormalizerTests
         var raw = new Dictionary<string, string?> { ["OPENAI_API_KEY"] = "", ["ANTHROPIC_API_KEY"] = null };
         EnvNormalizer.Normalize(raw).Should().BeEmpty();
     }
+
+    [Fact]
+    public void Normalize_prefers_explicit_canonical_over_alias()
+    {
+        var raw = new Dictionary<string, string?>
+        {
+            ["GPUSTACK_KEY"] = "from-alias",
+            ["GPUSTACK_API_KEY"] = "from-canonical"
+        };
+        EnvNormalizer.Normalize(raw)["GPUSTACK_API_KEY"].Should().Be("from-canonical");
+    }
 }
