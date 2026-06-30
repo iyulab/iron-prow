@@ -58,7 +58,7 @@ var response = await chat.GetResponseAsync("Hello");
 - `AddIronHiveOpenAI` · `AddIronHiveAnthropic` · `AddIronHiveGoogleAI` — frontier (`ProviderKind.Frontier`)
 - `AddIronHiveGpuStack` — LAN GpuStack (`ProviderKind.Lan`, key-optional). `cfg => cfg.BaseUrl = "http://gpustack.lan:8080"` 형태로 endpoint 지정.
 
-> Ollama / 기타 OpenAI-호환(LMStudio·vLLM)은 아직 어댑터가 없다 — ironhive에 해당 provider가 없기 때문이다. 흡수 전략은 `claudedocs/issues/ISSUE-ironhive-20260630-ollama-provider-absorption.md` (owner 결정 대기).
+> Ollama / 기타 OpenAI-호환(LMStudio·vLLM)은 아직 어댑터가 없다 — ironhive에 해당 provider가 없기 때문이다(generic OpenAI-Compatible provider 도입 예정).
 
 `UseFluxGuard()` (파라미터 없음) 는 Standard preset(L1 regex, offline)을 적용한다.  
 커스텀 FluxGuard 인스턴스를 주입하려면 `UseFluxGuard(IFluxGuard)` 오버로드를 사용한다.  
