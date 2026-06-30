@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>IronProw.FluxGuard</PackageId>
+    <Description>iron-prow guard adapter: FluxGuard guardrails as IGuard.</Description>
+    <PackageTags>llm;safe-inference;guardrails;fluxguard;iron-prow</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../IronProw.Core/IronProw.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FluxGuard" />
+  </ItemGroup>
+</Project>
