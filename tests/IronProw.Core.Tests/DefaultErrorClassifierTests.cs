@@ -21,4 +21,11 @@ public class DefaultErrorClassifierTests
     [Fact]
     public void Unknown_is_fallback_eligible()
         => _sut.Classify(new InvalidOperationException()).Should().Be(ErrorClassification.FallbackEligible);
+
+    [Fact]
+    public void Cancellation_is_terminal()
+    {
+        _sut.Classify(new OperationCanceledException()).Should().Be(ErrorClassification.Terminal);
+        _sut.Classify(new TaskCanceledException()).Should().Be(ErrorClassification.Terminal);
+    }
 }
