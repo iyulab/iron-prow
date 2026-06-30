@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>IronProw.IronHive</PackageId>
+    <Description>iron-prow adapter: ironhive providers as gateway candidates.</Description>
+    <PackageTags>llm;ichatclient;safe-inference;ironhive;openai;anthropic</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../IronProw.Core/IronProw.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- IronHive.Core supplies ChatClientAdapter (IronHive.Core.Compatibility) -->
+    <PackageReference Include="IronHive.Core" />
+    <!-- Provider packages — supply IMessageGenerator implementations -->
+    <PackageReference Include="IronHive.Providers.OpenAI" />
+    <PackageReference Include="IronHive.Providers.Anthropic" />
+  </ItemGroup>
+</Project>

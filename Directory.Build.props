@@ -11,6 +11,11 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <Version>0.1.0</Version>
   </PropertyGroup>
+  <!-- SQLitePCLRaw 2.1.11 has no patched release yet; suppress until upstream ships a fix -->
+  <ItemGroup>
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
+  </ItemGroup>
+
   <PropertyGroup>
     <Authors>iyulab</Authors>
     <Company>iyulab</Company>

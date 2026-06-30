@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/IronProw.Core/IronProw.Core.csproj" />
+    <Project Path="src/IronProw.IronHive/IronProw.IronHive.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/IronProw.Core.Tests/IronProw.Core.Tests.csproj" />
     <Project Path="tests/IronProw.Architecture.Tests/IronProw.Architecture.Tests.csproj" />
+    <Project Path="tests/IronProw.IronHive.Tests/IronProw.IronHive.Tests.csproj" />
   </Folder>
 </Solution>
