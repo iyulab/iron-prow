@@ -1,4 +1,5 @@
 using FluentAssertions;
+using IronProw.Core;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -25,5 +26,17 @@ public class AddIronProwTests
         var result = await client.GetResponseAsync([new(ChatRole.User, "hi")]);
 
         result.Should().BeSameAs(ok);
+    }
+
+    [Fact]
+    public void UseGuard_override_wins_over_default_null_guard()
+    {
+        var custom = Substitute.For<IGuard>();
+
+        var services = new ServiceCollection();
+        services.AddIronProw().UseGuard(_ => custom);
+        var sp = services.BuildServiceProvider();
+
+        sp.GetRequiredService<IGuard>().Should().BeSameAs(custom);
     }
 }
