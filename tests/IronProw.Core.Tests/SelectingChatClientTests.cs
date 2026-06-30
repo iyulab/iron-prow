@@ -131,4 +131,129 @@ public class SelectingChatClientTests
             .Should().ThrowAsync<InvalidOperationException>();
         await backup.DidNotReceive().GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>());
     }
+
+    private static SelectingChatClient BuildWith(IProviderRegistry registry, IronProwOptions options)
+        => new(Substitute.For<IServiceProvider>(), registry, new DefaultProviderSelector(),
+               new AllowGuard(), new DefaultErrorClassifier(), options);
+
+    [Fact]
+    public async Task OnTransition_reports_fallback_then_success_with_index_and_total()
+    {
+        var ok = new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok"));
+        var failing = Substitute.For<IChatClient>();
+        failing.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns<Task<ChatResponse>>(_ => throw new InvalidOperationException("down")); // FallbackEligible
+        var working = Substitute.For<IChatClient>();
+        working.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ok));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("primary", ProviderKind.Frontier, 100, _ => failing));
+        registry.Register(new("backup", ProviderKind.Lan, 50, _ => working));
+
+        var events = new List<ProwTransition>();
+        var sut = BuildWith(registry, new IronProwOptions
+        {
+            Resilience = new ResilienceOptions { MaxRetries = 0, BaseDelay = TimeSpan.Zero },
+            OnTransition = events.Add
+        });
+
+        var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")]);
+
+        result.Should().BeSameAs(ok);
+        // One Fallback event for the failed primary; the successful backup emits nothing.
+        events.Should().ContainSingle();
+        var e = events[0];
+        e.Kind.Should().Be(ProwTransitionKind.Fallback);
+        e.ProviderId.Should().Be("primary");
+        e.ProviderIndex.Should().Be(0);
+        e.TotalProviders.Should().Be(2);
+        e.Category.Should().Be(ErrorClassification.FallbackEligible);
+    }
+
+    [Fact]
+    public async Task OnTransition_reports_exhausted_when_last_provider_fails()
+    {
+        var first = Substitute.For<IChatClient>();
+        first.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns<Task<ChatResponse>>(_ => throw new InvalidOperationException("first"));
+        var second = Substitute.For<IChatClient>();
+        second.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns<Task<ChatResponse>>(_ => throw new InvalidOperationException("second"));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("a", ProviderKind.Frontier, 100, _ => first));
+        registry.Register(new("b", ProviderKind.Lan, 50, _ => second));
+
+        var events = new List<ProwTransition>();
+        var sut = BuildWith(registry, new IronProwOptions
+        {
+            Resilience = new ResilienceOptions { MaxRetries = 0, BaseDelay = TimeSpan.Zero },
+            OnTransition = events.Add
+        });
+
+        await sut.Invoking(s => s.GetResponseAsync([new(ChatRole.User, "hi")]))
+            .Should().ThrowAsync<InvalidOperationException>();
+
+        events.Select(e => e.Kind).Should().Equal(ProwTransitionKind.Fallback, ProwTransitionKind.Exhausted);
+        events[^1].ProviderId.Should().Be("b");
+        events[^1].ProviderIndex.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task OnTransition_reports_retry_attempts_before_fallback()
+    {
+        var flaky = Substitute.For<IChatClient>();
+        flaky.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns<Task<ChatResponse>>(_ => throw new HttpRequestException("transient")); // Retryable
+        var ok = new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok"));
+        var working = Substitute.For<IChatClient>();
+        working.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ok));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("head", ProviderKind.Frontier, 100, _ => flaky));
+        registry.Register(new("backup", ProviderKind.Lan, 50, _ => working));
+
+        var events = new List<ProwTransition>();
+        var sut = BuildWith(registry, new IronProwOptions
+        {
+            Resilience = new ResilienceOptions { MaxRetries = 2, BaseDelay = TimeSpan.Zero },
+            OnTransition = events.Add
+        });
+
+        var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")]);
+
+        result.Should().BeSameAs(ok);
+        // head: 2 retry attempts (attempt 0,1) then exhausts retries -> Retryable is not fallback-eligible at
+        // the selector, but EnableFallback degrades on any non-terminal -> Fallback for head, then backup OK.
+        events.Where(e => e.Kind == ProwTransitionKind.Retry).Select(e => e.Attempt).Should().Equal(0, 1);
+        events.Should().Contain(e => e.Kind == ProwTransitionKind.Fallback && e.ProviderId == "head");
+    }
+
+    [Fact]
+    public async Task OnTransition_callback_exception_does_not_break_inference()
+    {
+        var ok = new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok"));
+        var failing = Substitute.For<IChatClient>();
+        failing.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns<Task<ChatResponse>>(_ => throw new InvalidOperationException("down"));
+        var working = Substitute.For<IChatClient>();
+        working.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ok));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("primary", ProviderKind.Frontier, 100, _ => failing));
+        registry.Register(new("backup", ProviderKind.Lan, 50, _ => working));
+
+        var sut = BuildWith(registry, new IronProwOptions
+        {
+            Resilience = new ResilienceOptions { MaxRetries = 0, BaseDelay = TimeSpan.Zero },
+            OnTransition = _ => throw new InvalidOperationException("callback boom")
+        });
+
+        // The throwing callback must be swallowed; the gateway still falls back and returns the working response.
+        var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")]);
+        result.Should().BeSameAs(ok);
+    }
 }

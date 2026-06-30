@@ -9,10 +9,12 @@ namespace IronProw.Core;
 /// consumed stream cannot be safely retried.
 /// </summary>
 public sealed class ResilienceChatClient(
-    IChatClient inner, IErrorClassifier classifier, ResilienceOptions options) : DelegatingChatClient(inner)
+    IChatClient inner, IErrorClassifier classifier, ResilienceOptions options,
+    Action<int, Exception>? onRetry = null) : DelegatingChatClient(inner)
 {
     private readonly IErrorClassifier _classifier = classifier ?? throw new ArgumentNullException(nameof(classifier));
     private readonly ResilienceOptions _options = options ?? throw new ArgumentNullException(nameof(options));
+    private readonly Action<int, Exception>? _onRetry = onRetry;
 
     /// <inheritdoc />
     public override async Task<ChatResponse> GetResponseAsync(
@@ -28,6 +30,7 @@ public sealed class ResilienceChatClient(
             catch (Exception ex) when (
                 _classifier.Classify(ex) == ErrorClassification.Retryable && attempt < _options.MaxRetries)
             {
+                _onRetry?.Invoke(attempt, ex);
                 var delay = _options.BaseDelay * (attempt + 1);
                 if (delay > TimeSpan.Zero)
                     await Task.Delay(delay, cancellationToken).ConfigureAwait(false);

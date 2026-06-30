@@ -27,9 +27,10 @@ public sealed class SelectingChatClient(
             throw new InvalidOperationException("No inference providers are registered.");
 
         Exception? last = null;
-        foreach (var reg in order)
+        for (var i = 0; i < order.Count; i++)
         {
-            var attemptClient = BuildAttempt(reg);
+            var reg = order[i];
+            var attemptClient = BuildAttempt(reg, i, order.Count);
             try
             {
                 return await attemptClient.GetResponseAsync(list, options, cancellationToken).ConfigureAwait(false);
@@ -44,6 +45,10 @@ public sealed class SelectingChatClient(
                 if (!_options.EnableFallback)
                     throw;
                 last = ex; // try next candidate
+                var isLast = i == order.Count - 1;
+                Report(new ProwTransition(
+                    isLast ? ProwTransitionKind.Exhausted : ProwTransitionKind.Fallback,
+                    reg.Id, i, order.Count, verdict, ex));
             }
         }
         throw last ?? new InvalidOperationException("All providers failed.");
@@ -59,16 +64,36 @@ public sealed class SelectingChatClient(
         if (order.Count == 0)
             throw new InvalidOperationException("No inference providers are registered.");
 
-        var attemptClient = BuildAttempt(order[0]); // streaming uses the top provider only
+        var attemptClient = BuildAttempt(order[0], 0, order.Count); // streaming uses the top provider only
         await foreach (var update in attemptClient.GetStreamingResponseAsync(list, options, cancellationToken).ConfigureAwait(false))
             yield return update;
     }
 
-    private ResilienceChatClient BuildAttempt(ProviderRegistration reg)
+    private ResilienceChatClient BuildAttempt(ProviderRegistration reg, int index, int total)
     {
         var raw = reg.ClientFactory(services);
         var guarded = new GuardedChatClient(raw, guard);
-        return new ResilienceChatClient(guarded, classifier, _options.Resilience);
+        // Only allocate a retry reporter when a consumer is listening — keeps the no-hook path allocation-free.
+        Action<int, Exception>? onRetry = _options.OnTransition is null
+            ? null
+            : (attempt, ex) => Report(new ProwTransition(
+                ProwTransitionKind.Retry, reg.Id, index, total, ErrorClassification.Retryable, ex, attempt));
+        return new ResilienceChatClient(guarded, classifier, _options.Resilience, onRetry);
+    }
+
+    private void Report(ProwTransition transition)
+    {
+        var callback = _options.OnTransition;
+        if (callback is null)
+            return;
+        try
+        {
+            callback(transition);
+        }
+        catch
+        {
+            // Best-effort telemetry: a consumer reporting callback must never break inference.
+        }
     }
 
     /// <inheritdoc />

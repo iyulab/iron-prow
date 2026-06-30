@@ -3,7 +3,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>IronProw.IronHive</PackageId>
     <Description>iron-prow adapter: ironhive providers as gateway candidates.</Description>
-    <PackageTags>llm;ichatclient;safe-inference;ironhive;openai;anthropic</PackageTags>
+    <PackageTags>llm;ichatclient;safe-inference;ironhive;openai;anthropic;googleai;gpustack</PackageTags>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
@@ -14,6 +14,8 @@
     <PackageReference Include="IronHive.Core" />
     <!-- Provider packages — supply IMessageGenerator implementations -->
     <PackageReference Include="IronHive.Providers.OpenAI" />
+    <PackageReference Include="IronHive.Providers.OpenAI.Compatible" />
     <PackageReference Include="IronHive.Providers.Anthropic" />
+    <PackageReference Include="IronHive.Providers.GoogleAI" />
   </ItemGroup>
 </Project>

@@ -53,4 +53,52 @@ public class IronHiveProviderExtensionsTests
         sp.GetRequiredService<IProviderRegistry>().GetOrdered()
             .Should().ContainSingle(r => r.Id == "anthropic-claude" && r.Kind == ProviderKind.Frontier);
     }
+
+    [Fact]
+    public void AddIronHiveGoogleAI_wires_a_frontier_candidate()
+    {
+        // GoogleAI is a cloud frontier provider — Frontier kind, lazy factory (no network at registration).
+        var services = new ServiceCollection();
+        var builder = services.AddIronProw();
+
+        builder.AddIronHiveGoogleAI("google-gemini", 70, "gemini-2.5-pro", c => c.ApiKey = "test-key");
+
+        var sp = services.BuildServiceProvider();
+        sp.GetRequiredService<IProviderRegistry>().GetOrdered()
+            .Should().ContainSingle(r => r.Id == "google-gemini" && r.Kind == ProviderKind.Frontier);
+    }
+
+    [Fact]
+    public void AddIronHiveGpuStack_wires_a_lan_candidate()
+    {
+        // GPUStack is a LAN provider — Lan kind. Key-optional, so configure sets only the base URL here.
+        var services = new ServiceCollection();
+        var builder = services.AddIronProw();
+
+        builder.AddIronHiveGpuStack("gpustack-local", 110, "qwen3", c => c.BaseUrl = "http://localhost:8080");
+
+        var sp = services.BuildServiceProvider();
+        sp.GetRequiredService<IProviderRegistry>().GetOrdered()
+            .Should().ContainSingle(r => r.Id == "gpustack-local" && r.Kind == ProviderKind.Lan);
+    }
+
+    [Fact]
+    public void Adapters_register_distinct_candidates_ordered_by_priority()
+    {
+        // A realistic multi-provider chain (mirrors Filer's fallback set minus Ollama):
+        // gpustack(LAN, highest) -> openai -> anthropic -> google. Registry orders by priority desc.
+        var services = new ServiceCollection();
+        var builder = services.AddIronProw();
+
+        builder.AddIronHiveGpuStack("gpustack", 110, "qwen3", c => c.BaseUrl = "http://localhost:8080");
+        builder.AddIronHiveOpenAI("openai", 90, "gpt-4o", c => c.ApiKey = "sk-test");
+        builder.AddIronHiveAnthropic("anthropic", 80, "claude-opus-4-5", c => c.ApiKey = "sk-ant-test");
+        builder.AddIronHiveGoogleAI("google", 70, "gemini-2.5-pro", c => c.ApiKey = "test-key");
+
+        var sp = services.BuildServiceProvider();
+        var ordered = sp.GetRequiredService<IProviderRegistry>().GetOrdered();
+
+        ordered.Select(r => r.Id).Should().Equal("gpustack", "openai", "anthropic", "google");
+        ordered[0].Kind.Should().Be(ProviderKind.Lan);
+    }
 }
