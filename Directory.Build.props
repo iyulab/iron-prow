@@ -24,7 +24,11 @@
     <PackageProjectUrl>https://github.com/iyulab/iron-prow</PackageProjectUrl>
     <RepositoryUrl>https://github.com/iyulab/iron-prow</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
   <PropertyGroup Condition="Exists('$(MSBuildThisFileDirectory)../../local-packages')">
     <RestoreAdditionalProjectSources>
       $(RestoreAdditionalProjectSources);$(MSBuildThisFileDirectory)../../local-packages

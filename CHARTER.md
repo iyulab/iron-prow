@@ -87,8 +87,12 @@ host와 iron-prow는 **한 쌍**이며 책임이 인접해 혼동되기 쉽다. 
 
 ## 현재 상태 & 게이트
 
-- **상태**: placeholder (LICENSE + README 1줄 + 본 CHARTER). core/adapter 코드 없음.
-- **게이트**: rule-of-two **OPEN** (4앱 실증). 그러나 **코드 착수 = owner 승인** (CONSTITUTION §2: 2nd consumer 실증 후 추출, 껍데기 ≠ 구현 승인).
+- **상태**: **M2 core + adapters 구현 완료 (0.1.0)**. Branch `feat/m2` — 41 tests green.
+  - `IronProw.Core` — 계약, resilience, 선택 로직, M4-1 without-ironhive validator
+  - `IronProw.IronHive` — OpenAI / Anthropic provider 어댑터
+  - `IronProw.FluxGuard` — FluxGuard guardrail 어댑터
+  - `IronProw.LMSupply` — local-provider safety (readiness, length-bounding, crash-fallback)
+- **게이트**: rule-of-two **OPEN** (4앱 실증). Owner 승인 수령 후 `feat/m2` → main merge 예정.
 - **선행 권장**: Track 1 MU-7(lm-supply unbounded-gen) ✅ 0.35.0 RESOLVED 확인 — local-safety 토대 안정. 나머지 Track 1(MU-2/3/6) 배포 완료.
 - **안티패턴 경계**: Track 1을 건너뛰고 iron-prow가 upstream 결함을 *감싸기만* 하면 부채 2겹 (MIDDLEWARE-ALIGNMENT §0.2). 깨끗한 라이브러리 위에 얇게 선다.
 
