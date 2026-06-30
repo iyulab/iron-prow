@@ -28,4 +28,11 @@ public class DefaultErrorClassifierTests
         _sut.Classify(new OperationCanceledException()).Should().Be(ErrorClassification.Terminal);
         _sut.Classify(new TaskCanceledException()).Should().Be(ErrorClassification.Terminal);
     }
+
+    [Fact]
+    public void Http_timeout_cancellation_is_retryable()
+    {
+        var httpTimeout = new TaskCanceledException("timeout", new TimeoutException());
+        _sut.Classify(httpTimeout).Should().Be(ErrorClassification.Retryable);
+    }
 }
