@@ -4,5 +4,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/IronProw.Core.Tests/IronProw.Core.Tests.csproj" />
+    <Project Path="tests/IronProw.Architecture.Tests/IronProw.Architecture.Tests.csproj" />
   </Folder>
 </Solution>
