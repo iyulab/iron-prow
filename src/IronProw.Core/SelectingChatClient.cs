@@ -39,7 +39,9 @@ public sealed class SelectingChatClient(
                 var verdict = classifier.Classify(ex);
                 if (verdict == ErrorClassification.Terminal)
                     throw;
-                if (verdict == ErrorClassification.FallbackEligible && !_options.EnableFallback)
+                // Fallback disabled: never switch providers (a transient Retryable failure that exhausted
+                // per-provider retries must not silently route to a different provider/ProviderKind).
+                if (!_options.EnableFallback)
                     throw;
                 last = ex; // try next candidate
             }

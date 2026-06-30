@@ -87,6 +87,29 @@ public class SelectingChatClientTests
     }
 
     [Fact]
+    public async Task Does_not_switch_provider_on_exhausted_retryable_when_fallback_disabled()
+    {
+        var head = Substitute.For<IChatClient>();
+        head.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns<Task<ChatResponse>>(_ => throw new HttpRequestException("transient")); // Retryable
+        var backup = Substitute.For<IChatClient>();
+        backup.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "unreached"))));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("head", ProviderKind.Lan, 100, _ => head));
+        registry.Register(new("backup", ProviderKind.Frontier, 50, _ => backup));
+
+        var sut = new SelectingChatClient(Substitute.For<IServiceProvider>(), registry, new DefaultProviderSelector(),
+            new AllowGuard(), new DefaultErrorClassifier(),
+            new IronProwOptions { Resilience = new ResilienceOptions { MaxRetries = 0, BaseDelay = TimeSpan.Zero }, EnableFallback = false });
+
+        await sut.Invoking(s => s.GetResponseAsync([new(ChatRole.User, "hi")]))
+            .Should().ThrowAsync<HttpRequestException>();
+        await backup.DidNotReceive().GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Does_not_fall_back_when_EnableFallback_is_false()
     {
         var failing = Substitute.For<IChatClient>();
