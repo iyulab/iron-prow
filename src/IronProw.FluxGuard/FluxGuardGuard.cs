@@ -37,6 +37,11 @@ public sealed class FluxGuardGuard : IGuard
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The original request input is not available to this method per the <see cref="IGuard"/> contract.
+    /// FluxGuard's output inspection is therefore called with an empty input context, which may limit
+    /// input-aware output rules. Output rules that do not require request context operate normally.
+    /// </remarks>
     public async ValueTask<GuardVerdict> InspectOutputAsync(ChatResponse response, CancellationToken ct)
     {
         var text = response.Text ?? string.Empty;

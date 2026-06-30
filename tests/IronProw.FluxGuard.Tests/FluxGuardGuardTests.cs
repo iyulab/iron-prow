@@ -81,6 +81,40 @@ public class FluxGuardGuardTests
         verdict.Allowed.Should().BeFalse();
         verdict.Reason.Should().Be("escalation required");
     }
+
+    [Fact]
+    public async Task InspectOutputAsync_blocks_flagged_output()
+    {
+        var fake = Substitute.For<global::FluxGuard.IFluxGuard>();
+        fake.CheckOutputAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(GuardResult.Flag(
+                "req", 0.8, Severity.High,
+                [new TriggeredGuard { GuardName = "L1Harmful", Layer = "L1", Details = "harmful output detected" }],
+                0.0)));
+
+        FluxGuardGuard sut = new(fake);
+        var verdict = await sut.InspectOutputAsync(
+            new ChatResponse(new ChatMessage(ChatRole.Assistant, "harmful content")),
+            CancellationToken.None);
+
+        verdict.Allowed.Should().BeFalse();
+        verdict.Reason.Should().Be("harmful output detected");
+    }
+
+    [Fact]
+    public async Task InspectOutputAsync_allows_clean_output()
+    {
+        var fake = Substitute.For<global::FluxGuard.IFluxGuard>();
+        fake.CheckOutputAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(GuardResult.Pass("req", 0.0)));
+
+        FluxGuardGuard sut = new(fake);
+        var verdict = await sut.InspectOutputAsync(
+            new ChatResponse(new ChatMessage(ChatRole.Assistant, "clean output")),
+            CancellationToken.None);
+
+        verdict.Allowed.Should().BeTrue();
+    }
 }
 
 internal static class FluxGuardGuardTestFactory
