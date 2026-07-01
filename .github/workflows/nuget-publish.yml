@@ -1,0 +1,50 @@
+name: NuGet Publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Directory.Build.props'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Extract version from Directory.Build.props
+        id: version
+        run: |
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Restore dependencies
+        run: dotnet restore IronProw.slnx
+
+      - name: Build
+        run: dotnet build IronProw.slnx --no-restore -c Release
+
+      - name: Test
+        run: dotnet test IronProw.slnx --no-build -c Release --verbosity normal --filter "Category!=Integration&Category!=RequiresApiKey&Category!=Performance"
+
+      # iron-prow is a unified-version family (IronProw.Core/.IronHive/.FluxGuard/.LMSupply
+      # share one <Version>); pack the SOLUTION so the whole dependency closure is emitted
+      # at the same version (single-csproj pack would break the closure -> NU1102 downstream).
+      - name: Pack NuGet packages
+        run: dotnet pack IronProw.slnx --no-build -c Release -o ./nupkgs
+
+      - name: Publish to NuGet.org
+        run: dotnet nuget push ./nupkgs/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
