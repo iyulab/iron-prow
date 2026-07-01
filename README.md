@@ -148,6 +148,8 @@ services.AddIronProw()
 
 `OnTransition`(선택)은 각 게이트웨이 전환(retry / fallback / exhausted)마다 호출되는 best-effort 콜백이다. 소비자가 어느 provider로 강등됐는지 UI에 표시(예: resilience 칩)할 수 있다. 콜백이 던지는 예외는 삼켜지며 추론을 절대 깨지 않는다. 미설정 시 동작은 기존과 동일(무보고).
 
+**스트리밍 동등성**: retry·fallback은 `GetResponseAsync`와 `GetStreamingResponseAsync` 양쪽에 동일하게 적용된다. 스트리밍의 복원력 창은 **"첫 `ChatResponseUpdate`가 yield되기 전"** 이다 — 첫 청크 이전에 발생한 실패(예: OpenAI 호환 호출이 첫 `MoveNextAsync`에서 던지는 connection-refused / 404 / model-not-found)는 same-provider retry(Retryable) 또는 next-provider fallback(FallbackEligible)으로 처리된다. 첫 청크가 emit된 뒤의 실패는 provider를 바꾸면 이중 emit이 되므로 그대로 전파된다.
+
 ### 멀티테넌트 — per-tenant provider resolution
 
 기본 `AddProvider`/`AddLMSupplyLocal` 경로는 **provider 집합이 프로세스 수명 동안 고정**인 소비자(데스크탑 에이전트, 단일 유저)를 위한 것이다. 워크스페이스마다 provider 집합·config·secret이 다른 **멀티테넌트 서버 소비자**는 `AddTenantResolver`로 per-tenant 게이트웨이를 런타임에 build한다.

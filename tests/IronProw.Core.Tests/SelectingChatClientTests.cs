@@ -256,4 +256,169 @@ public class SelectingChatClientTests
         var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")]);
         result.Should().BeSameAs(ok);
     }
+
+    // --- Streaming: cross-provider fallback parity with the non-streaming path ---
+    // The resilience window is "no ChatResponseUpdate yielded yet"; once a chunk is emitted, propagating is
+    // correct (a mid-stream switch would double-emit). This mirrors GetResponseAsync for first-chunk failures.
+
+    [Fact]
+    public async Task Streaming_falls_back_to_next_provider_on_fallback_eligible()
+    {
+        var failing = StreamClient(() => Throwing(new InvalidOperationException("primary down"))); // FallbackEligible
+        var working = StreamClient(() => Yields("ok:fallback"));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("primary", ProviderKind.Frontier, 100, _ => failing));
+        registry.Register(new("backup", ProviderKind.Lan, 50, _ => working));
+
+        var text = await CollectAsync(Build(registry).GetStreamingResponseAsync([new(ChatRole.User, "hi")]));
+        text.Should().Be("ok:fallback");
+    }
+
+    [Fact]
+    public async Task Streaming_rethrows_terminal_without_trying_next()
+    {
+        var terminal = StreamClient(() => Throwing(new OperationCanceledException())); // Terminal
+        var next = StreamClient(() => Yields("unreached"));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("primary", ProviderKind.Frontier, 100, _ => terminal));
+        registry.Register(new("backup", ProviderKind.Lan, 50, _ => next));
+
+        await Build(registry).Invoking(s => CollectAsync(s.GetStreamingResponseAsync([new(ChatRole.User, "hi")])))
+            .Should().ThrowAsync<OperationCanceledException>();
+        next.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Streaming_does_not_fall_back_when_EnableFallback_is_false()
+    {
+        var failing = StreamClient(() => Throwing(new InvalidOperationException("down"))); // FallbackEligible
+        var backup = StreamClient(() => Yields("unreached"));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("primary", ProviderKind.Frontier, 100, _ => failing));
+        registry.Register(new("backup", ProviderKind.Lan, 50, _ => backup));
+
+        var sut = new SelectingChatClient(Substitute.For<IServiceProvider>(), registry, new DefaultProviderSelector(),
+            new AllowGuard(), new DefaultErrorClassifier(),
+            new IronProwOptions { Resilience = new ResilienceOptions { MaxRetries = 0, BaseDelay = TimeSpan.Zero }, EnableFallback = false });
+
+        await sut.Invoking(s => CollectAsync(s.GetStreamingResponseAsync([new(ChatRole.User, "hi")])))
+            .Should().ThrowAsync<InvalidOperationException>();
+        backup.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Streaming_does_not_fall_back_after_first_chunk_yielded()
+    {
+        // Primary emits a chunk, then fails mid-stream. Switching now would double-emit, so it must propagate.
+        var primary = StreamClient(() => OneChunkThenThrow("partial", new InvalidOperationException("mid-stream")));
+        var backup = StreamClient(() => Yields("unreached"));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("primary", ProviderKind.Frontier, 100, _ => primary));
+        registry.Register(new("backup", ProviderKind.Lan, 50, _ => backup));
+
+        await Build(registry).Invoking(s => CollectAsync(s.GetStreamingResponseAsync([new(ChatRole.User, "hi")])))
+            .Should().ThrowAsync<InvalidOperationException>();
+        backup.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Streaming_OnTransition_reports_fallback_then_success()
+    {
+        var failing = StreamClient(() => Throwing(new InvalidOperationException("down"))); // FallbackEligible
+        var working = StreamClient(() => Yields("ok"));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("primary", ProviderKind.Frontier, 100, _ => failing));
+        registry.Register(new("backup", ProviderKind.Lan, 50, _ => working));
+
+        var events = new List<ProwTransition>();
+        var sut = BuildWith(registry, new IronProwOptions
+        {
+            Resilience = new ResilienceOptions { MaxRetries = 0, BaseDelay = TimeSpan.Zero },
+            OnTransition = events.Add
+        });
+
+        var text = await CollectAsync(sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")]));
+
+        text.Should().Be("ok");
+        events.Should().ContainSingle();
+        events[0].Kind.Should().Be(ProwTransitionKind.Fallback);
+        events[0].ProviderId.Should().Be("primary");
+        events[0].ProviderIndex.Should().Be(0);
+        events[0].TotalProviders.Should().Be(2);
+        events[0].Category.Should().Be(ErrorClassification.FallbackEligible);
+    }
+
+    [Fact]
+    public async Task Streaming_rethrows_last_exception_when_all_providers_fail()
+    {
+        var first = StreamClient(() => Throwing(new InvalidOperationException("first")));
+        var second = StreamClient(() => Throwing(new InvalidOperationException("second-last")));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("a", ProviderKind.Frontier, 100, _ => first));
+        registry.Register(new("b", ProviderKind.Lan, 50, _ => second));
+
+        (await Build(registry).Invoking(s => CollectAsync(s.GetStreamingResponseAsync([new(ChatRole.User, "hi")])))
+            .Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Be("second-last");
+    }
+
+    // --- streaming test helpers ---
+
+    private sealed class StreamOnlyClient(Func<IAsyncEnumerable<ChatResponseUpdate>> stream) : IChatClient
+    {
+        public int Calls { get; private set; }
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return stream();
+        }
+
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+        public void Dispose() { }
+    }
+
+    private static StreamOnlyClient StreamClient(Func<IAsyncEnumerable<ChatResponseUpdate>> stream) => new(stream);
+
+    private static ChatResponseUpdate Update(string text)
+        => new() { Role = ChatRole.Assistant, Contents = [new TextContent(text)] };
+
+    private static async IAsyncEnumerable<ChatResponseUpdate> Throwing(Exception ex)
+    {
+        await Task.Yield();
+        if (ex is not null) throw ex; // 'if' keeps the trailing yield reachable so this compiles as an iterator
+        yield break;
+    }
+
+    private static async IAsyncEnumerable<ChatResponseUpdate> Yields(params string[] texts)
+    {
+        await Task.Yield();
+        foreach (var t in texts)
+            yield return Update(t);
+    }
+
+    private static async IAsyncEnumerable<ChatResponseUpdate> OneChunkThenThrow(string text, Exception ex)
+    {
+        await Task.Yield();
+        yield return Update(text);
+        throw ex;
+    }
+
+    private static async Task<string> CollectAsync(IAsyncEnumerable<ChatResponseUpdate> stream)
+    {
+        var sb = new System.Text.StringBuilder();
+        await foreach (var u in stream)
+            sb.Append(u.Text);
+        return sb.ToString();
+    }
 }

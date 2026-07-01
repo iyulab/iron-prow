@@ -64,9 +64,50 @@ public sealed class SelectingChatClient(
         if (order.Count == 0)
             throw new InvalidOperationException("No inference providers are registered.");
 
-        var attemptClient = BuildAttempt(order[0], 0, order.Count); // streaming uses the top provider only
-        await foreach (var update in attemptClient.GetStreamingResponseAsync(list, options, cancellationToken).ConfigureAwait(false))
-            yield return update;
+        // Mirror the non-streaming path: try providers in priority order, degrading on non-terminal failures.
+        // The resilience window is "no ChatResponseUpdate yielded yet" — once a chunk is emitted, switching
+        // providers would double-emit, so any later failure propagates. (Per-provider retry lives inside the
+        // ResilienceChatClient the attempt is wrapped in, using the same before-first-chunk rule.)
+        Exception? last = null;
+        for (var i = 0; i < order.Count; i++)
+        {
+            var reg = order[i];
+            var attemptClient = BuildAttempt(reg, i, order.Count);
+            await using var enumerator = attemptClient.GetStreamingResponseAsync(list, options, cancellationToken)
+                .GetAsyncEnumerator(cancellationToken);
+            var yielded = false;
+            while (true)
+            {
+                ChatResponseUpdate? update;
+                bool hasNext;
+                try
+                {
+                    hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                    update = hasNext ? enumerator.Current : null;
+                }
+                catch (Exception ex) when (!yielded)
+                {
+                    var verdict = classifier.Classify(ex);
+                    if (verdict == ErrorClassification.Terminal)
+                        throw;
+                    // Fallback disabled: never switch providers (a transient Retryable failure that exhausted
+                    // per-provider retries must not silently route to a different provider/ProviderKind).
+                    if (!_options.EnableFallback)
+                        throw;
+                    last = ex; // try next candidate
+                    var isLast = i == order.Count - 1;
+                    Report(new ProwTransition(
+                        isLast ? ProwTransitionKind.Exhausted : ProwTransitionKind.Fallback,
+                        reg.Id, i, order.Count, verdict, ex));
+                    break; // dispose this enumerator, then advance to the next provider
+                }
+                if (!hasNext)
+                    yield break; // stream completed on this provider
+                yielded = true;
+                yield return update!;
+            }
+        }
+        throw last ?? new InvalidOperationException("All providers failed.");
     }
 
     private ResilienceChatClient BuildAttempt(ProviderRegistration reg, int index, int total)
