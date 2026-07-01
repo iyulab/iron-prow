@@ -148,6 +148,29 @@ services.AddIronProw()
 
 `OnTransition`(선택)은 각 게이트웨이 전환(retry / fallback / exhausted)마다 호출되는 best-effort 콜백이다. 소비자가 어느 provider로 강등됐는지 UI에 표시(예: resilience 칩)할 수 있다. 콜백이 던지는 예외는 삼켜지며 추론을 절대 깨지 않는다. 미설정 시 동작은 기존과 동일(무보고).
 
+### 멀티테넌트 — per-tenant provider resolution
+
+기본 `AddProvider`/`AddLMSupplyLocal` 경로는 **provider 집합이 프로세스 수명 동안 고정**인 소비자(데스크탑 에이전트, 단일 유저)를 위한 것이다. 워크스페이스마다 provider 집합·config·secret이 다른 **멀티테넌트 서버 소비자**는 `AddTenantResolver`로 per-tenant 게이트웨이를 런타임에 build한다.
+
+```csharp
+// startup — 단일 테넌트 AddProvider 경로와 병존(무회귀)
+services.AddIronProw()
+        .UseFluxGuard()
+        .AddTenantResolver((sp, tenant) =>                           // 신규 표면
+            sp.GetRequiredService<ProviderService>()                // consumer 구현
+              .ResolveRegistrations(tenant));                       // per-workspace 집합 → ProviderRegistration[]
+
+// per-request (요청 스코프에서 resolve)
+var client = scopedSp.GetRequiredService<IIronProwFactory>().ForTenant(workspaceId);
+await client.GetResponseAsync(msgs, options, ct);                    // guarded: select/retry/fallback/guard
+```
+
+- `ForTenant(tenant)`은 해당 테넌트의 provider 집합으로 `SelectingChatClient`를 재조립한다 — selector/guard/classifier/options는 공유(재사용), **registry만 per-tenant**. tenant 키는 iron-prow에 opaque(resolver가 해석).
+- `IIronProwFactory`는 **scoped**로 등록되므로 **요청 스코프에서 resolve**해야 resolver·provider factory가 요청 범위 서비스(예: 복호화된 워크스페이스 secret)를 본다.
+- **async는 상류에서**: resolver와 `ProviderRegistration.ClientFactory`는 모두 sync다. 워크스페이스 secret의 async DB 로드·복호화는 consumer의 요청 미들웨어에서 수행해 scoped 서비스에 stash하고, resolver는 그것을 sync로 읽는다. (요청당 async 로드가 필수라면 향후 `ForTenantAsync` 오버로드가 순수 additive로 추가될 수 있다.)
+- 반환된 client는 매 요청 build(연결 없음·저비용)다. consumer가 provider factory에서 `HttpClient` 등 disposable을 쥐면 수명은 consumer 책임이다.
+- 단일 테넌트 경로(`AddProvider`/`AddLMSupplyLocal`, singleton `IChatClient`)는 완전 무변경으로 병존한다.
+
 ## Crash-fallback 제한
 
 `LocalSafetyChatClient`(갈래 B)는 `IReadinessProbe`로 로컬 추론 불가를 감지하고, 게이트웨이 `SelectingChatClient`의 provider-level fallback으로 승격한다. **이것은 게이트웨이 수준 fallback(M2-4 범위)이다.**

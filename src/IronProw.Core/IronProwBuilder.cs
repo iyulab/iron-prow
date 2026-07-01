@@ -1,5 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace IronProw.Core;
 
@@ -28,6 +30,27 @@ public sealed class IronProwBuilder
     public IronProwBuilder Configure(Action<IronProwOptions> configure)
     {
         _services.Configure(configure);
+        return this;
+    }
+
+    /// <summary>
+    /// Enables per-tenant provider resolution by registering an <see cref="IIronProwFactory"/> (scoped).
+    /// The <paramref name="resolver"/> maps an opaque tenant key to that tenant's provider set, using the
+    /// supplied (request-scoped) <see cref="IServiceProvider"/> to reach per-request services such as an
+    /// already-decrypted workspace secret. Coexists with the single-tenant <see cref="AddProvider"/> path
+    /// without regression. Async secret loading must be done upstream (see <see cref="IIronProwFactory"/>).
+    /// </summary>
+    public IronProwBuilder AddTenantResolver(
+        Func<IServiceProvider, string, IReadOnlyList<ProviderRegistration>> resolver)
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+        _services.TryAddScoped<IIronProwFactory>(sp => new IronProwFactory(
+            sp,
+            resolver,
+            sp.GetRequiredService<IProviderSelector>(),
+            sp.GetRequiredService<IGuard>(),
+            sp.GetRequiredService<IErrorClassifier>(),
+            sp.GetRequiredService<IOptions<IronProwOptions>>().Value));
         return this;
     }
 }
