@@ -4,7 +4,8 @@
 > provider selection (frontier ∨ LAN GpuStack) · guardrail · resilience — delivered as a standard `Microsoft.Extensions.AI.IChatClient`.
 
 두 갈래 필수: frontier/LAN 게이트웨이(A) **and** local-provider safety(B).  
-역할·범위·설계 근거는 [`CHARTER.md`](./CHARTER.md) 참조.
+역할·범위·설계 근거는 [`CHARTER.md`](./CHARTER.md) 참조.  
+이미 자체 배선(provider·resilience·guardrail)을 가진 앱의 이관은 [`docs/ADOPTION.md`](./docs/ADOPTION.md) 참조.
 
 ## Packages
 
