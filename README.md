@@ -108,6 +108,23 @@ IChatClient chat = host.Services.GetRequiredService<IChatClient>();
 - **readiness gate** — `IReadinessProbe.IsReadyAsync`로 로드 완료 확인
 - **length-bounding** — `LocalSafetyOptions.DefaultMaxOutputTokens` (미설정 호출에 자동 적용, 기본 512)
 
+#### 경량 경로 — 단일 local provider (게이트웨이 없이)
+
+폴백 대상 2번째 provider가 없는 **local-first 단일 provider** 소비자(예: textree)에게는 게이트웨이의 registry·selection·resilience 레이어가 전부 inert하다. 이 경우 `BuildLocalSafeClient`가 브리지+안전wrap만 조립한 plain `IChatClient`를 등록 없이 반환한다:
+
+```csharp
+using IronProw.LMSupply;
+using Microsoft.Extensions.AI;
+
+// 게이트웨이(AddIronProw/빌더/레지스트리) 없이 guarded local client 직접 조립.
+IChatClient chat = LMSupplyExtensions.BuildLocalSafeClient(
+    generator,                                                 // lm-supply ITextGenerator (호출자 소유)
+    probe,                                                     // IReadinessProbe
+    new LocalSafetyOptions { DefaultMaxOutputTokens = 1024 }); // 선택 (기본 512)
+```
+
+동일한 safety(preflight·readiness gate·length-bounding)를 받되 selection/fallback/resilience 오버헤드가 없다. 다중 provider·우선순위 선택·provider-level fallback이 필요해지면 `AddLMSupplyLocal`로 전환한다.
+
 ### 두 갈래 조합
 
 두 갈래를 같은 DI 등록에서 조합할 수 있다. `priority`가 높은 provider가 먼저 선택되고, fallback 시 낮은 우선순위 provider로 강등된다.
