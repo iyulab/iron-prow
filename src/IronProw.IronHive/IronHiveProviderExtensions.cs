@@ -2,6 +2,7 @@ using IronHive.Core.Compatibility;
 using IronHive.Providers.Anthropic;
 using IronHive.Providers.GoogleAI;
 using IronHive.Providers.OpenAI;
+using IronHive.Providers.OpenAI.Compatible;
 using IronHive.Providers.OpenAI.Compatible.GpuStack;
 using IronProw.Core;
 
@@ -123,6 +124,37 @@ public static class IronHiveProviderExtensions
             configure(config);
             var generator = new GpuStackMessageGenerator(config);
             return new ChatClientAdapter(generator, modelId, "gpustack");
+        });
+    }
+
+    /// <summary>
+    /// Registers an ironhive generic OpenAI-compatible provider (Ollama, LM Studio, vLLM, llama.cpp
+    /// server, etc.) as a <see cref="ProviderKind.Lan"/> candidate. These endpoints expose the
+    /// conventional <c>/v1</c> OpenAI API surface and treat the API key as optional, matching LAN
+    /// services that accept unauthenticated requests. Defaults to Ollama's <c>http://localhost:11434</c>.
+    /// </summary>
+    /// <param name="builder">The iron-prow builder.</param>
+    /// <param name="id">Unique provider id for the gateway registry.</param>
+    /// <param name="priority">Selection priority — higher wins.</param>
+    /// <param name="modelId">Default model id forwarded to the chat client metadata.</param>
+    /// <param name="configure">Action to configure <see cref="OpenAICompatibleConfig"/> (base URL, optional API key, path, connect timeout).</param>
+    /// <returns>The same builder for fluent chaining.</returns>
+    public static IronProwBuilder AddIronHiveOpenAICompatible(
+        this IronProwBuilder builder,
+        string id,
+        int priority,
+        string modelId,
+        Action<OpenAICompatibleConfig> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        return builder.AddProvider(id, ProviderKind.Lan, priority, _ =>
+        {
+            var config = new OpenAICompatibleConfig();
+            configure(config);
+            var generator = new OpenAICompatibleMessageGenerator(config);
+            return new ChatClientAdapter(generator, modelId, "openai-compatible");
         });
     }
 }

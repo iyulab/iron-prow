@@ -83,14 +83,45 @@ public class IronHiveProviderExtensionsTests
     }
 
     [Fact]
+    public void AddIronHiveOpenAICompatible_wires_a_lan_candidate()
+    {
+        // Generic OpenAI-compatible endpoint (Ollama, LM Studio, vLLM, llama.cpp server) — LAN kind.
+        // Key-optional and defaults to Ollama's http://localhost:11434, so configure may set only the model.
+        var services = new ServiceCollection();
+        var builder = services.AddIronProw();
+
+        builder.AddIronHiveOpenAICompatible("ollama-local", 105, "llama3.2", c => c.BaseUrl = "http://localhost:11434");
+
+        var sp = services.BuildServiceProvider();
+        sp.GetRequiredService<IProviderRegistry>().GetOrdered()
+            .Should().ContainSingle(r => r.Id == "ollama-local" && r.Kind == ProviderKind.Lan);
+    }
+
+    [Fact]
+    public void AddIronHiveOpenAICompatible_defaults_to_ollama_endpoint_when_unconfigured()
+    {
+        // Key-optional LAN default: no BaseUrl/ApiKey set. Registration must still succeed with a lazy
+        // factory (no network at registration) — the default endpoint is Ollama's :11434.
+        var services = new ServiceCollection();
+        var builder = services.AddIronProw();
+
+        builder.AddIronHiveOpenAICompatible("ollama-default", 100, "qwen3", _ => { });
+
+        var sp = services.BuildServiceProvider();
+        sp.GetRequiredService<IProviderRegistry>().GetOrdered()
+            .Should().ContainSingle(r => r.Id == "ollama-default" && r.Kind == ProviderKind.Lan);
+    }
+
+    [Fact]
     public void Adapters_register_distinct_candidates_ordered_by_priority()
     {
-        // A realistic multi-provider chain (mirrors Filer's fallback set minus Ollama):
-        // gpustack(LAN, highest) -> openai -> anthropic -> google. Registry orders by priority desc.
+        // The full Filer fallback set: gpustack(LAN) -> ollama(LAN) -> openai -> anthropic -> google.
+        // LAN candidates rank highest; the registry orders by priority desc.
         var services = new ServiceCollection();
         var builder = services.AddIronProw();
 
         builder.AddIronHiveGpuStack("gpustack", 110, "qwen3", c => c.BaseUrl = "http://localhost:8080");
+        builder.AddIronHiveOpenAICompatible("ollama", 105, "llama3.2", c => c.BaseUrl = "http://localhost:11434");
         builder.AddIronHiveOpenAI("openai", 90, "gpt-4o", c => c.ApiKey = "sk-test");
         builder.AddIronHiveAnthropic("anthropic", 80, "claude-opus-4-5", c => c.ApiKey = "sk-ant-test");
         builder.AddIronHiveGoogleAI("google", 70, "gemini-2.5-pro", c => c.ApiKey = "test-key");
@@ -98,7 +129,8 @@ public class IronHiveProviderExtensionsTests
         var sp = services.BuildServiceProvider();
         var ordered = sp.GetRequiredService<IProviderRegistry>().GetOrdered();
 
-        ordered.Select(r => r.Id).Should().Equal("gpustack", "openai", "anthropic", "google");
+        ordered.Select(r => r.Id).Should().Equal("gpustack", "ollama", "openai", "anthropic", "google");
         ordered[0].Kind.Should().Be(ProviderKind.Lan);
+        ordered[1].Kind.Should().Be(ProviderKind.Lan);
     }
 }
