@@ -1,4 +1,4 @@
-using IronHive.Core.Compatibility;
+using IronHive.Core.Microsoft;
 using IronHive.Providers.Anthropic;
 using IronHive.Providers.GoogleAI;
 using IronHive.Providers.OpenAI;
@@ -34,7 +34,12 @@ public static class IronHiveProviderExtensions
 
         return builder.AddProvider(id, ProviderKind.Frontier, priority, _ =>
         {
-            var config = new OpenAIConfig();
+            // Preserve the deployed 0.2.1 behavior: ironhive 0.7.9's OpenAIConfig had no API-surface
+            // concept and always used Chat Completions. ironhive 0.8.2's OpenAIConfig.Api defaults to
+            // Responses (OpenAI-proprietary), so an unset default would silently flip this gateway
+            // adapter's wire protocol on rebuild. Default to Chat Completions (the portable surface);
+            // callers wanting first-party Responses can override in `configure`.
+            var config = new OpenAIConfig { Api = OpenAIApiSurface.ChatCompletions };
             configure(config);
             var generator = new OpenAIMessageGenerator(config);
             return new ChatClientAdapter(generator, modelId, "openai");

@@ -10,3 +10,6 @@ obj/
 # stray test-output scratch (must never be committed)
 *-output.txt
 test-output.txt
+
+# Local-only working docs (CLAUDE.md convention — gitignored in all repos)
+claudedocs/
