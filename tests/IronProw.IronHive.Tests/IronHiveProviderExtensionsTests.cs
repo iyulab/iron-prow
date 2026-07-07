@@ -136,50 +136,27 @@ public class IronHiveProviderExtensionsTests
     }
 
     [Fact]
-    public void AddIronHiveOpenAI_defaults_to_ChatCompletions_surface()
+    public void AddIronHiveOpenAI_uses_ChatCompletions_surface()
     {
-        // Guards a silent wire-protocol flip: ironhive 0.7.9's OpenAIConfig had no API-surface concept
-        // (Chat Completions only); 0.8.2's OpenAIConfig.Api defaults to Responses. The Frontier adapter
-        // must keep emitting Chat Completions unless the caller opts in. Captures the config the adapter
-        // actually builds and asserts the default precedes the caller's configure callback.
+        // Guards a silent wire-protocol flip across ironhive rebuilds. History: 0.7.9's OpenAIConfig
+        // had no API-surface concept (Chat Completions only); 0.8.2 added OpenAIConfig.Api defaulting
+        // to Responses (0.2.2 pinned ChatCompletions); >= 0.8.3 reverted the switch to dedicated
+        // generators per package — OpenAIMessageGenerator is Responses-only and Chat Completions lives
+        // in Compatible.ChatCompletion. The Frontier adapter must keep emitting Chat Completions, so
+        // assert the factory wraps ChatCompletionMessageGenerator (reflection: the adapter does not
+        // expose its generator). A first-party Responses registration would be a separate extension.
         var services = new ServiceCollection();
         var builder = services.AddIronProw();
-        OpenAIConfig? captured = null;
-        builder.AddIronHiveOpenAI("openai-frontier", 90, "gpt-4o", c =>
-        {
-            c.ApiKey = "sk-test";
-            captured = c;
-        });
+        builder.AddIronHiveOpenAI("openai-frontier", 90, "gpt-4o", c => c.ApiKey = "sk-test");
 
         var sp = services.BuildServiceProvider();
         var reg = sp.GetRequiredService<IProviderRegistry>().GetOrdered()
             .Single(r => r.Id == "openai-frontier");
-        reg.ClientFactory(sp); // runs the factory: sets the default, then invokes configure (captures config)
+        var client = reg.ClientFactory(sp);
 
-        captured.Should().NotBeNull();
-        captured!.Api.Should().Be(OpenAIApiSurface.ChatCompletions);
-    }
-
-    [Fact]
-    public void AddIronHiveOpenAI_caller_can_override_surface_to_Responses()
-    {
-        // The ChatCompletions default is a default, not a lock — a caller targeting first-party OpenAI
-        // reasoning can still opt into Responses.
-        var services = new ServiceCollection();
-        var builder = services.AddIronProw();
-        OpenAIConfig? captured = null;
-        builder.AddIronHiveOpenAI("openai-responses", 90, "gpt-4o", c =>
-        {
-            c.ApiKey = "sk-test";
-            c.Api = OpenAIApiSurface.Responses;
-            captured = c;
-        });
-
-        var sp = services.BuildServiceProvider();
-        var reg = sp.GetRequiredService<IProviderRegistry>().GetOrdered()
-            .Single(r => r.Id == "openai-responses");
-        reg.ClientFactory(sp);
-
-        captured!.Api.Should().Be(OpenAIApiSurface.Responses);
+        var generatorField = client.GetType()
+            .GetField("_generator", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        generatorField.Should().NotBeNull("the wire-protocol guard needs the adapter's underlying generator");
+        generatorField!.GetValue(client).Should().BeOfType<global::IronHive.Providers.OpenAI.Compatible.ChatCompletion.ChatCompletionMessageGenerator>();
     }
 }

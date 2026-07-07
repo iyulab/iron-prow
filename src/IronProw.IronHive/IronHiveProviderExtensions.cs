@@ -34,14 +34,16 @@ public static class IronHiveProviderExtensions
 
         return builder.AddProvider(id, ProviderKind.Frontier, priority, _ =>
         {
-            // Preserve the deployed 0.2.1 behavior: ironhive 0.7.9's OpenAIConfig had no API-surface
-            // concept and always used Chat Completions. ironhive 0.8.2's OpenAIConfig.Api defaults to
-            // Responses (OpenAI-proprietary), so an unset default would silently flip this gateway
-            // adapter's wire protocol on rebuild. Default to Chat Completions (the portable surface);
-            // callers wanting first-party Responses can override in `configure`.
-            var config = new OpenAIConfig { Api = OpenAIApiSurface.ChatCompletions };
+            // Preserve the deployed wire protocol: this adapter has always spoken Chat Completions
+            // (0.2.1 on ironhive 0.7.9; 0.2.2 pinned OpenAIApiSurface.ChatCompletions on 0.8.2).
+            // ironhive >= 0.8.3 reverted the API-surface switch to dedicated generators per package —
+            // OpenAIMessageGenerator is now Responses-only, and Chat Completions lives in
+            // Compatible.ChatCompletion — so a naive rebuild against OpenAIMessageGenerator would
+            // silently flip this gateway's wire protocol. A first-party Responses registration can be
+            // added as a separate extension when a consumer demands it.
+            var config = new OpenAIConfig();
             configure(config);
-            var generator = new OpenAIMessageGenerator(config);
+            var generator = new global::IronHive.Providers.OpenAI.Compatible.ChatCompletion.ChatCompletionMessageGenerator(config);
             return new ChatClientAdapter(generator, modelId, "openai");
         });
     }
