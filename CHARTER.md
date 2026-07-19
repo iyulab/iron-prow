@@ -83,6 +83,8 @@ host와 iron-prow는 **한 쌍**이며 책임이 인접해 혼동되기 쉽다. 
 
 > **이관 후보**: host에 현재 baked-in된 안전 데코레이터 — `TokenBudgetChatClient`(length-bounding), `ResilientFunctionInvoker`(error-recovery)는 **"안전 추론" 책임이므로 iron-prow로 수렴하는 것이 정석**이다. host는 이들을 직접 구성하지 않고 iron-prow가 제공하는 guarded client를 소비하면 된다. (구현 게이트 통과 시 M2-2/M2-4에서 이관 검토 — 지금은 경계 선언만.)
 
+> **프로세스-경계 노출 (재litigation 방지)**: 프로세스-경계 노출(HTTP/SSE wire) = host/consumer 영역. iron-prow는 in-proc 데코레이터(`IChatClient`)로 유지한다. raw-inference-over-wire(세션·루프 없는 guarded client를 프로세스 경계 너머로)는 어느 CHARTER도 청구하지 않은 **미청구 seam** — cross-consumer 수요 2 실증(rule-of-two) 시에만 옵션 호스트 어댑터(semver minor)로 재검토한다. 그 전까지 소비자가 앱-경계 파사드로 소유. (근거: VibeBase 트라이지 2026-07-19, 수요신호 1/2.)
+
 ---
 
 ## 현재 상태 & 게이트
