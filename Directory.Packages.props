@@ -16,12 +16,12 @@
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="FluxGuard" Version="0.11.1" />
     <!-- IronHive provider packages — unified-version family, all at the same version -->
-    <PackageVersion Include="IronHive.Core" Version="0.10.0" />
-    <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.10.0" />
-    <PackageVersion Include="IronHive.Providers.OpenAI.Compatible" Version="0.10.0" />
-    <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.10.0" />
-    <PackageVersion Include="IronHive.Providers.GoogleAI" Version="0.10.0" />
+    <PackageVersion Include="IronHive.Core" Version="0.13.0" />
+    <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.13.0" />
+    <PackageVersion Include="IronHive.Providers.OpenAI.Compatible" Version="0.13.0" />
+    <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.13.0" />
+    <PackageVersion Include="IronHive.Providers.GoogleAI" Version="0.13.0" />
     <!-- LMSupply local-inference packages -->
-    <PackageVersion Include="LMSupply.Generator" Version="0.37.0" />
+    <PackageVersion Include="LMSupply.Generator" Version="0.37.1" />
   </ItemGroup>
 </Project>
