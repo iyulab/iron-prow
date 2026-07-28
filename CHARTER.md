@@ -32,7 +32,7 @@ GpuStack(LAN) ∨ frontier 중 **골라 + 보안 감싼 `IChatClient`를 뱉는 
 
 ### 3. 소비자 (rule-of-two 실증 = 4/4)
 - ⑤ `ironhive-host` (guarded `IChatClient` 주입) · ③ HoneAI · ② Formbase · **모든 LLM 호출**(단일 관문) · 외부인(범용 .NET).
-- 역산 증거(`claudedocs/plans/2026-06-29-middleware-demand-reverse-engineering.md`): SMI.AIMS(2 inference 스택) · Filer(resilience 3×) · vault-ai(guardrail 전무) · textree(local-safety 절반) — **4앱이 독립적으로 같은 표면을 hand-roll.**
+- 역산 증거(`ironhive-umbrella/claudedocs/plans/2026-06-29-middleware-demand-reverse-engineering.md` — maintainer-local): SMI.AIMS(2 inference 스택) · Filer(resilience 3×) · vault-ai(guardrail 전무) · textree(local-safety 절반) — **4앱이 독립적으로 같은 표면을 hand-roll.**
 
 ### 4. 의존 (without-ironhive — MW-P1 적용)
 low 층이므로 **core + adapter** 구조. core는 표준 추상화 + BCL만, iyulab 구현 결합은 adapter에만.
@@ -105,7 +105,7 @@ host와 iron-prow는 **한 쌍**이며 책임이 인접해 혼동되기 쉽다. 
 실행 태스크·일정·게이트 상태의 권위는 **`ironhive-umbrella/docs/MIDDLEWARE-ALIGNMENT.md`**:
 
 - **M2** — iron-prow 안전 추론 단일 관문: M2-1(core) · M2-2(guarded IChatClient) · M2-3(registry/priority/env/key) · M2-4(local-provider safety) · M2-5(host ← 주입).
-- **M4-1** — without-ironhive validator (core가 impl 참조 시 CI fail). 초안 `claudedocs/issues/ISSUE-iron-prow-20260629-013104-m41-without-ironhive-core-validator.md`. **M2 코드 투입과 반드시 동반.**
+- **M4-1** — without-ironhive validator (core가 impl 참조 시 CI fail). 초안 `ironhive-umbrella/claudedocs/issues/ISSUE-iron-prow-20260629-013104-m41-without-ironhive-core-validator.md` (maintainer-local). **M2 코드 투입과 반드시 동반.**
 
 ## License
 
