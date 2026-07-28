@@ -6,12 +6,22 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
+      # Central package/build props decide which upstream versions are compiled against, so a
+      # re-pin is exactly the change most likely to break the build. Without these a dependency
+      # bump merged with no CI run at all.
+      - '**/*.props'
+      - '**/*.slnx'
       - '.github/workflows/ci.yml'
   pull_request:
     branches: [main]
     paths:
       - 'src/**'
       - 'tests/**'
+      # Central package/build props decide which upstream versions are compiled against, so a
+      # re-pin is exactly the change most likely to break the build. Without these a dependency
+      # bump merged with no CI run at all.
+      - '**/*.props'
+      - '**/*.slnx'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
 
