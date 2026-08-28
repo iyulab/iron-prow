@@ -1,5 +1,5 @@
 #pragma warning disable CA2012
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.AI;
 using NSubstitute;
 using Xunit;

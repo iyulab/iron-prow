@@ -1,6 +1,6 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 namespace IronProw.Core.Tests;

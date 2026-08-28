@@ -1,6 +1,6 @@
 #pragma warning disable CA2012 // ValueTask not directly awaited — NSubstitute .Returns() setup pattern
 #pragma warning disable CA1861 // Array literal in .Returns() setup is intentional per-test, not repeated call site
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.AI;
 using NSubstitute;
 using Xunit;

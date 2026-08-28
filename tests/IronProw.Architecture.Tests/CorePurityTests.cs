@@ -1,5 +1,5 @@
 using System.Reflection;
-using FluentAssertions;
+using AwesomeAssertions;
 using IronProw.Core;
 using Xunit;
 

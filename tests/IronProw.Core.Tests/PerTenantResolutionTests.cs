@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using IronProw.Core;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using IronProw.Core;
 using IronProw.LMSupply;
 using LMSupply.Generator.Abstractions;

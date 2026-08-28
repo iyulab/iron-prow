@@ -1,5 +1,5 @@
 #pragma warning disable CA1861 // Array literal in test setup is intentional per-test, not a repeated hot path
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.AI;
 using NSubstitute;
 using Xunit;

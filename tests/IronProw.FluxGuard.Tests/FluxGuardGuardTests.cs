@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using FluxGuard;
 using FluxGuard.Core;
 using FluxGuard.Presets;

@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using FluentAssertions;
+using AwesomeAssertions;
 using LMSupply.Generator.Abstractions;
 using Microsoft.Extensions.AI;
 using Xunit;
