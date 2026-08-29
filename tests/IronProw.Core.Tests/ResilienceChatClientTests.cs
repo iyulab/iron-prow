@@ -18,7 +18,7 @@ public class ResilienceChatClientTests
             .Returns(_ => throw new HttpRequestException("1"), _ => Task.FromResult(response));
 
         var sut = new ResilienceChatClient(inner, new DefaultErrorClassifier(), Fast());
-        var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")]);
+        var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().BeSameAs(response);
         await inner.Received(2).GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>());
@@ -62,7 +62,7 @@ public class ResilienceChatClientTests
             : Yields("ok"));                                            // attempt 1 succeeds
 
         var sut = new ResilienceChatClient(inner, new DefaultErrorClassifier(), Fast());
-        var text = await CollectAsync(sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")]));
+        var text = await CollectAsync(sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken));
 
         text.Should().Be("ok");
         inner.Calls.Should().Be(2); // initial + one retry

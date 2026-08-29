@@ -23,7 +23,7 @@ public class AddIronProwTests
         var sp = services.BuildServiceProvider();
 
         var client = sp.GetRequiredService<IChatClient>();
-        var result = await client.GetResponseAsync([new(ChatRole.User, "hi")]);
+        var result = await client.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().BeSameAs(ok);
     }

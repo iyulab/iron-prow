@@ -14,9 +14,9 @@ public class LazyReadinessProbeTests
         var ready = false;
         var probe = new LazyReadinessProbe(() => ready, new[] { "gemma-3" });
 
-        (await probe.IsReadyAsync()).Should().BeFalse();
+        (await probe.IsReadyAsync(TestContext.Current.CancellationToken)).Should().BeFalse();
         ready = true; // lazy load completed
-        (await probe.IsReadyAsync()).Should().BeTrue();
+        (await probe.IsReadyAsync(TestContext.Current.CancellationToken)).Should().BeTrue();
     }
 
     [Fact]
@@ -24,7 +24,7 @@ public class LazyReadinessProbeTests
     {
         var probe = new LazyReadinessProbe(() => true, new[] { "gemma-3", "qwen3" });
 
-        (await probe.GetAvailableModelIdsAsync()).Should().Equal("gemma-3", "qwen3");
+        (await probe.GetAvailableModelIdsAsync(TestContext.Current.CancellationToken)).Should().Equal("gemma-3", "qwen3");
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public class LazyReadinessProbeTests
 
         source.Add("mutated-after-construction"); // must not leak into the probe
 
-        (await probe.GetAvailableModelIdsAsync()).Should().Equal("gemma-3");
+        (await probe.GetAvailableModelIdsAsync(TestContext.Current.CancellationToken)).Should().Equal("gemma-3");
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public class LazyReadinessProbeTests
         var probe = new LazyReadinessProbe(() => true, new[] { "gemma-3" });
         var sut = new LocalSafetyChatClient(inner, new LocalSafetyOptions { DefaultMaxOutputTokens = 512 }, probe);
 
-        var response = await sut.GetResponseAsync([new(ChatRole.User, "hi")], new ChatOptions { ModelId = "gemma-3" });
+        var response = await sut.GetResponseAsync([new(ChatRole.User, "hi")], new ChatOptions { ModelId = "gemma-3" }, TestContext.Current.CancellationToken);
         response.Text.Should().Be("ok");
     }
 }

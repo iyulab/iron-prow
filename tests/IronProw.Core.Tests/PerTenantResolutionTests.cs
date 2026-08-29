@@ -42,8 +42,8 @@ public class PerTenantResolutionTests
         var sp = services.BuildServiceProvider();
         var factory = sp.GetRequiredService<IIronProwFactory>();
 
-        var a = await factory.ForTenant("A").GetResponseAsync([new(ChatRole.User, "hi")]);
-        var b = await factory.ForTenant("B").GetResponseAsync([new(ChatRole.User, "hi")]);
+        var a = await factory.ForTenant("A").GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
+        var b = await factory.ForTenant("B").GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
         a.Should().BeSameAs(respA);
         b.Should().BeSameAs(respB);
@@ -75,7 +75,7 @@ public class PerTenantResolutionTests
         scope.ServiceProvider.GetRequiredService<TenantSecretHolder>().Secret = "ws-secret-42";
         var factory = scope.ServiceProvider.GetRequiredService<IIronProwFactory>();
 
-        var resp = await factory.ForTenant("ws").GetResponseAsync([new(ChatRole.User, "hi")]);
+        var resp = await factory.ForTenant("ws").GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
         resp.Text.Should().Be("ws-secret-42");
     }
@@ -137,7 +137,7 @@ public class PerTenantResolutionTests
                 [new ProviderRegistration("t", ProviderKind.Frontier, 100, _ => Substitute.For<IChatClient>())]);
         var sp = services.BuildServiceProvider();
 
-        var resp = await sp.GetRequiredService<IChatClient>().GetResponseAsync([new(ChatRole.User, "hi")]);
+        var resp = await sp.GetRequiredService<IChatClient>().GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
         resp.Should().BeSameAs(single);
     }

@@ -21,7 +21,7 @@ public class GeneratorChatClientTests
         var gen = new FakeTextGenerator { CompletionContent = "ok" };
         var sut = new GeneratorChatClient(gen);
 
-        await sut.GetResponseAsync([new(ChatRole.User, "hi")], new ChatOptions { MaxOutputTokens = 256 });
+        await sut.GetResponseAsync([new(ChatRole.User, "hi")], new ChatOptions { MaxOutputTokens = 256 }, TestContext.Current.CancellationToken);
 
         gen.LastOptions!.MaxNewTokens.Should().Be(256);
         // Resolved cap (MaxNewTokens ?? MaxTokens) must reflect the explicit value.
@@ -34,13 +34,11 @@ public class GeneratorChatClientTests
         var gen = new FakeTextGenerator { CompletionContent = "ok" };
         var sut = new GeneratorChatClient(gen);
 
-        await sut.GetResponseAsync(
-            [
+        await sut.GetResponseAsync([
                 new(ChatRole.System, "sys"),
                 new(ChatRole.User, "u"),
                 new(ChatRole.Assistant, "a")
-            ],
-            new ChatOptions { Instructions = "instr" });
+            ], new ChatOptions { Instructions = "instr" }, TestContext.Current.CancellationToken);
 
         // Instructions is emitted as a leading System message, then the three messages in order.
         gen.LastMessages.Select(m => m.Role).Should().Equal(
@@ -59,7 +57,7 @@ public class GeneratorChatClientTests
         };
         var sut = new GeneratorChatClient(gen);
 
-        var response = await sut.GetResponseAsync([new(ChatRole.User, "hi")]);
+        var response = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
         response.FinishReason.Should().Be(ChatFinishReason.ToolCalls);
         var msg = response.Messages.Single();
@@ -92,7 +90,7 @@ public class GeneratorChatClientTests
         var sut = new GeneratorChatClient(gen);
 
         var updates = new List<ChatResponseUpdate>();
-        await foreach (var u in sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")]))
+        await foreach (var u in sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken))
         {
             updates.Add(u);
         }

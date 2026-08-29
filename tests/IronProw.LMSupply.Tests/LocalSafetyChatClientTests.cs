@@ -38,7 +38,7 @@ public class LocalSafetyChatClientTests
             .Returns(new ValueTask<IReadOnlyList<string>>(new[] { "gemma-3" }));
 
         var sut = new LocalSafetyChatClient(inner, new LocalSafetyOptions { DefaultMaxOutputTokens = 512 }, probe);
-        await sut.GetResponseAsync([new(ChatRole.User, "hi")], new ChatOptions { ModelId = "gemma-3" });
+        await sut.GetResponseAsync([new(ChatRole.User, "hi")], new ChatOptions { ModelId = "gemma-3" }, TestContext.Current.CancellationToken);
 
         captured!.MaxOutputTokens.Should().Be(512);
     }
@@ -56,7 +56,7 @@ public class LocalSafetyChatClientTests
             .Returns(new ValueTask<IReadOnlyList<string>>(new[] { "gemma-3" }));
 
         var sut = new LocalSafetyChatClient(inner, new LocalSafetyOptions { DefaultMaxOutputTokens = 512 }, probe);
-        await sut.GetResponseAsync([new(ChatRole.User, "hi")], new ChatOptions { ModelId = "gemma-3", MaxOutputTokens = 4096 });
+        await sut.GetResponseAsync([new(ChatRole.User, "hi")], new ChatOptions { ModelId = "gemma-3", MaxOutputTokens = 4096 }, TestContext.Current.CancellationToken);
 
         captured!.MaxOutputTokens.Should().Be(4096);
     }

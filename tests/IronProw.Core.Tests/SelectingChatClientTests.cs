@@ -37,7 +37,7 @@ public class SelectingChatClientTests
         registry.Register(new("primary", ProviderKind.Frontier, 100, _ => failing));
         registry.Register(new("backup", ProviderKind.Lan, 50, _ => working));
 
-        var result = await Build(registry).GetResponseAsync([new(ChatRole.User, "hi")]);
+        var result = await Build(registry).GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
         result.Should().BeSameAs(ok);
     }
 
@@ -158,7 +158,7 @@ public class SelectingChatClientTests
             OnTransition = events.Add
         });
 
-        var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")]);
+        var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().BeSameAs(ok);
         // One Fallback event for the failed primary; the successful backup emits nothing.
@@ -222,7 +222,7 @@ public class SelectingChatClientTests
             OnTransition = events.Add
         });
 
-        var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")]);
+        var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
         result.Should().BeSameAs(ok);
         // head: 2 retry attempts (attempt 0,1) then exhausts retries -> Retryable is not fallback-eligible at
@@ -253,7 +253,7 @@ public class SelectingChatClientTests
         });
 
         // The throwing callback must be swallowed; the gateway still falls back and returns the working response.
-        var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")]);
+        var result = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
         result.Should().BeSameAs(ok);
     }
 
@@ -271,7 +271,7 @@ public class SelectingChatClientTests
         registry.Register(new("primary", ProviderKind.Frontier, 100, _ => failing));
         registry.Register(new("backup", ProviderKind.Lan, 50, _ => working));
 
-        var text = await CollectAsync(Build(registry).GetStreamingResponseAsync([new(ChatRole.User, "hi")]));
+        var text = await CollectAsync(Build(registry).GetStreamingResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken));
         text.Should().Be("ok:fallback");
     }
 
@@ -342,7 +342,7 @@ public class SelectingChatClientTests
             OnTransition = events.Add
         });
 
-        var text = await CollectAsync(sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")]));
+        var text = await CollectAsync(sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken));
 
         text.Should().Be("ok");
         events.Should().ContainSingle();
