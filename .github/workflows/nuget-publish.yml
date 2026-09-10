@@ -39,7 +39,7 @@ jobs:
 
       - name: Test
         # xUnit v3/MTP has no VSTest-style single-expression --filter; see ci.yml's comment.
-        run: dotnet test IronProw.slnx --no-build -c Release --verbosity normal --filter-not-trait "Category=Integration" --filter-not-trait "Category=RequiresApiKey" --filter-not-trait "Category=Performance" --hangdump --hangdump-timeout 5m
+        run: dotnet test --solution IronProw.slnx --no-build -c Release --verbosity normal --filter-not-trait "Category=Integration" --filter-not-trait "Category=RequiresApiKey" --filter-not-trait "Category=Performance" --hangdump --hangdump-timeout 5m
 
       # iron-prow is a unified-version family (IronProw.Core/.IronHive/.FluxGuard/.LMSupply
       # share one <Version>); pack the SOLUTION so the whole dependency closure is emitted

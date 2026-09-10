@@ -52,4 +52,4 @@ jobs:
         # xUnit v3/MTP has no VSTest-style single-expression --filter; each excluded trait value
         # gets its own --filter-not-trait (repeated flags AND together, empirically verified in
         # modules/memory-indexer cycle-358). --hangdump/--hangdump-timeout replaces --blame-hang.
-        run: dotnet test IronProw.slnx --no-build -c Release --verbosity normal --filter-not-trait "Category=Integration" --filter-not-trait "Category=RequiresApiKey" --filter-not-trait "Category=Performance" --hangdump --hangdump-timeout 5m
+        run: dotnet test --solution IronProw.slnx --no-build -c Release --verbosity normal --filter-not-trait "Category=Integration" --filter-not-trait "Category=RequiresApiKey" --filter-not-trait "Category=Performance" --hangdump --hangdump-timeout 5m
