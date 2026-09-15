@@ -12,18 +12,53 @@ namespace IronProw.Core;
 /// its retry budget. Health memory is per gateway instance and only applies when fallback is enabled —
 /// with fallback disabled the gateway never routes around a provider, not even a cooling one.
 /// </summary>
-public sealed class SelectingChatClient(
-    IServiceProvider services,
-    IProviderRegistry registry,
-    IProviderSelector selector,
-    IGuard guard,
-    IErrorClassifier classifier,
-    IronProwOptions options,
-    TimeProvider? timeProvider = null) : IChatClient
+public sealed class SelectingChatClient : IChatClient
 {
-    private readonly IronProwOptions _options = options ?? throw new ArgumentNullException(nameof(options));
-    private readonly ProviderHealthTracker _health = new(
-        (options ?? throw new ArgumentNullException(nameof(options))).Resilience, timeProvider ?? TimeProvider.System);
+    private readonly IServiceProvider services;
+    private readonly IProviderRegistry registry;
+    private readonly IProviderSelector selector;
+    private readonly IGuard guard;
+    private readonly IErrorClassifier classifier;
+    private readonly IronProwOptions _options;
+    private readonly ProviderHealthTracker _health;
+
+    /// <summary>Creates a gateway that owns its own provider health memory.</summary>
+    public SelectingChatClient(
+        IServiceProvider services,
+        IProviderRegistry registry,
+        IProviderSelector selector,
+        IGuard guard,
+        IErrorClassifier classifier,
+        IronProwOptions options,
+        TimeProvider? timeProvider = null)
+        : this(services, registry, selector, guard, classifier, options,
+               new ProviderHealthTracker(Require(options).Resilience, timeProvider ?? TimeProvider.System))
+    { }
+
+    /// <summary>
+    /// Creates a gateway over a shared health memory — the per-tenant factory hands every gateway it
+    /// builds for a tenant the same tracker, so what one scope learned about a provider survives the scope.
+    /// </summary>
+    internal SelectingChatClient(
+        IServiceProvider services,
+        IProviderRegistry registry,
+        IProviderSelector selector,
+        IGuard guard,
+        IErrorClassifier classifier,
+        IronProwOptions options,
+        ProviderHealthTracker health)
+    {
+        this.services = services;
+        this.registry = registry;
+        this.selector = selector;
+        this.guard = guard;
+        this.classifier = classifier;
+        _options = Require(options);
+        _health = health ?? throw new ArgumentNullException(nameof(health));
+    }
+
+    private static IronProwOptions Require(IronProwOptions options)
+        => options ?? throw new ArgumentNullException(nameof(options));
 
     /// <inheritdoc />
     public async Task<ChatResponse> GetResponseAsync(

@@ -25,13 +25,20 @@ public static class ServiceCollectionExtensions
             return registry;
         });
 
+        // Provider health memory outlives any scope: the single-tenant gateway is a singleton and owns
+        // its own tracker; the per-tenant factory (scoped, rebuilt per call) borrows a tenant's tracker here.
+        services.TryAddSingleton(sp => new ProviderHealthStore(
+            sp.GetRequiredService<IOptions<IronProwOptions>>().Value.Resilience,
+            sp.GetService<TimeProvider>() ?? TimeProvider.System));
+
         services.TryAddSingleton<IChatClient>(sp => new SelectingChatClient(
             sp,
             sp.GetRequiredService<IProviderRegistry>(),
             sp.GetRequiredService<IProviderSelector>(),
             sp.GetRequiredService<IGuard>(),
             sp.GetRequiredService<IErrorClassifier>(),
-            sp.GetRequiredService<IOptions<IronProwOptions>>().Value));
+            sp.GetRequiredService<IOptions<IronProwOptions>>().Value,
+            sp.GetService<TimeProvider>()));
 
         services.AddOptions<IronProwOptions>();
         return new IronProwBuilder(services);

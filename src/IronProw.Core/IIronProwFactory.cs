@@ -25,7 +25,9 @@ public interface IIronProwFactory
 
 /// <summary>
 /// Default <see cref="IIronProwFactory"/>: rebuilds a <see cref="SelectingChatClient"/> over a
-/// per-tenant <see cref="ProviderRegistry"/> while reusing the shared selector/guard/classifier/options.
+/// per-tenant <see cref="ProviderRegistry"/> while reusing the shared selector/guard/classifier/options
+/// and the tenant's provider health memory (a singleton <see cref="ProviderHealthStore"/>, so what one
+/// request learned about a dead provider is still known by the next request's gateway).
 /// </summary>
 internal sealed class IronProwFactory(
     IServiceProvider services,
@@ -33,7 +35,8 @@ internal sealed class IronProwFactory(
     IProviderSelector selector,
     IGuard guard,
     IErrorClassifier classifier,
-    IronProwOptions options) : IIronProwFactory
+    IronProwOptions options,
+    ProviderHealthStore health) : IIronProwFactory
 {
     /// <inheritdoc />
     public IChatClient ForTenant(string tenant)
@@ -44,6 +47,7 @@ internal sealed class IronProwFactory(
         foreach (var registration in resolver(services, tenant))
             registry.Register(registration);
 
-        return new SelectingChatClient(services, registry, selector, guard, classifier, options);
+        // The factory is scoped and this gateway lives for one call; the tenant's health memory does not.
+        return new SelectingChatClient(services, registry, selector, guard, classifier, options, health.ForTenant(tenant));
     }
 }

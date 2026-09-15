@@ -80,6 +80,55 @@ public class PerTenantResolutionTests
         resp.Text.Should().Be("ws-secret-42");
     }
 
+    [Fact]
+    public async Task ForTenant_health_memory_survives_the_scope_and_is_isolated_per_tenant()
+    {
+        // The factory is scoped and rebuilds the gateway per call; without a shared store a dead provider
+        // would be re-learned by every request. Threshold 1: one failure arms the cooldown.
+        var deadA = Substitute.For<IChatClient>();
+        deadA.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns<Task<ChatResponse>>(_ => throw new InvalidOperationException("A is down"));
+        var okA = ProviderReturning(new ChatResponse(new ChatMessage(ChatRole.Assistant, "A-backup")));
+        var sameIdB = ProviderReturning(new ChatResponse(new ChatMessage(ChatRole.Assistant, "B-primary")));
+        var transitions = new List<ProwTransition>();
+
+        var services = new ServiceCollection();
+        services.Configure<IronProwOptions>(o =>
+        {
+            o.Resilience = new ResilienceOptions { MaxRetries = 0, BaseDelay = TimeSpan.Zero, FailureThreshold = 1 };
+            o.OnTransition = transitions.Add;
+        });
+        services.AddIronProw()
+            .AddTenantResolver((_, tenant) => tenant switch
+            {
+                "A" => [new ProviderRegistration("primary", ProviderKind.Lan, 100, _ => deadA),
+                        new ProviderRegistration("backup", ProviderKind.Local, 50, _ => okA)],
+                "B" => [new ProviderRegistration("primary", ProviderKind.Lan, 100, _ => sameIdB)],
+                _ => []
+            });
+        var root = services.BuildServiceProvider();
+
+        using (var scope1 = root.CreateScope())
+        {
+            await scope1.ServiceProvider.GetRequiredService<IIronProwFactory>().ForTenant("A")
+                .GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
+        }
+        transitions.Clear();
+        using (var scope2 = root.CreateScope())
+        {
+            var factory = scope2.ServiceProvider.GetRequiredService<IIronProwFactory>();
+            var a = await factory.ForTenant("A").GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
+            var b = await factory.ForTenant("B").GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
+
+            a.Text.Should().Be("A-backup");
+            b.Text.Should().Be("B-primary", "tenant B's provider shares the id 'primary' but not tenant A's failures");
+        }
+
+        transitions.Select(t => (t.Kind, t.ProviderId)).Should().Equal((ProwTransitionKind.Skipped, "primary"));
+        deadA.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(IChatClient.GetResponseAsync)).Should().Be(1,
+            "the second scope's gateway must already know the provider is cooling down");
+    }
+
     private sealed class BlockingGuard : IGuard
     {
         public ValueTask<GuardVerdict> InspectInputAsync(IReadOnlyList<ChatMessage> m, CancellationToken ct)

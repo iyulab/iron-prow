@@ -50,7 +50,8 @@ public sealed class IronProwBuilder
             sp.GetRequiredService<IProviderSelector>(),
             sp.GetRequiredService<IGuard>(),
             sp.GetRequiredService<IErrorClassifier>(),
-            sp.GetRequiredService<IOptions<IronProwOptions>>().Value));
+            sp.GetRequiredService<IOptions<IronProwOptions>>().Value,
+            sp.GetRequiredService<ProviderHealthStore>()));
         return this;
     }
 }
