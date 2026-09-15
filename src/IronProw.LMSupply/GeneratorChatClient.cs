@@ -7,6 +7,7 @@ using LmChatRole = LMSupply.Generator.Models.ChatRole;
 using LmChatToolCall = LMSupply.Generator.Models.ChatToolCall;
 using LmChatToolDefinition = LMSupply.Generator.Models.ChatToolDefinition;
 using LmGenerationOptions = LMSupply.Generator.Models.GenerationOptions;
+using LmThinkingMode = LMSupply.Generator.Models.ThinkingMode;
 
 namespace IronProw.LMSupply;
 
@@ -28,6 +29,21 @@ namespace IronProw.LMSupply;
 /// output-cap semantics. lm-supply resolves the effective cap via <c>ResolveMaxOutputTokens()</c>
 /// (<c>MaxNewTokens ?? MaxTokens</c>) and both ONNX and llama-server backends apply it as a new-token
 /// cap, so the value is honored identically whether mapped to <c>MaxNewTokens</c> or <c>MaxTokens</c>.
+/// </para>
+/// <para>
+/// <b>Reasoning:</b> the standard <see cref="ChatOptions.Reasoning"/> drives lm-supply's
+/// <c>GenerationOptions.Thinking</c> — <see cref="ReasoningEffort.None"/> turns thinking off, any other
+/// effort turns it on, and <see langword="null"/> keeps the model's own default. Reasoning the model
+/// produces is carried back as <see cref="TextReasoningContent"/> (non-streaming from
+/// <c>ChatCompletionResult.Reasoning</c>, streaming from <c>ChatStreamChunk.ReasoningDelta</c>) unless
+/// <see cref="ReasoningOptions.Output"/> is <see cref="ReasoningOutput.None"/>. This is what makes an
+/// empty answer with <see cref="ChatFinishReason.Length"/> explainable: a thinking model can spend the
+/// whole output budget on reasoning, and the consumer sees that reasoning instead of an empty string.
+/// </para>
+/// <para>
+/// <b>Instrumentation:</b> <see cref="ChatResponse.ModelId"/> and <see cref="ChatResponse.Usage"/> are
+/// filled from the generator (usage only when the backend reports it — llama-server does, ONNX does not),
+/// and <see cref="GetService"/> answers <see cref="ChatClientMetadata"/> with <see cref="Metadata"/>.
 /// </para>
 /// <para>
 /// The generator lifecycle is owned by the caller (e.g. textree's pool / loader); <see cref="Dispose"/>
@@ -62,6 +78,11 @@ public sealed class GeneratorChatClient : IChatClient
             .ConfigureAwait(false);
 
         var contents = new List<AIContent>();
+        if (CarriesReasoning(options) && !string.IsNullOrEmpty(result.Reasoning))
+        {
+            contents.Add(new TextReasoningContent(result.Reasoning));
+        }
+
         if (result.Content is not null)
         {
             contents.Add(new TextContent(result.Content));
@@ -78,7 +99,16 @@ public sealed class GeneratorChatClient : IChatClient
         var responseMessage = new ChatMessage(ChatRole.Assistant, contents);
         return new ChatResponse(responseMessage)
         {
-            FinishReason = MapFinishReason(result.FinishReason)
+            FinishReason = MapFinishReason(result.FinishReason),
+            ModelId = _generator.ModelId,
+            Usage = result.Usage is { } usage
+                ? new UsageDetails
+                {
+                    InputTokenCount = usage.PromptTokens,
+                    OutputTokenCount = usage.CompletionTokens,
+                    TotalTokenCount = usage.TotalTokens,
+                }
+                : null,
         };
     }
 
@@ -93,15 +123,28 @@ public sealed class GeneratorChatClient : IChatClient
         var genOptions = ConvertOptions(options);
 
         Dictionary<int, (string Id, string Name, string Args)>? toolCallAccumulator = null;
+        var carriesReasoning = CarriesReasoning(options);
+        var modelId = _generator.ModelId;
 
         await foreach (var chunk in _generator.GenerateChatStreamAsync(lmMessages, genOptions, cancellationToken)
             .ConfigureAwait(false))
         {
+            if (carriesReasoning && chunk.ReasoningDelta is not null)
+            {
+                yield return new ChatResponseUpdate
+                {
+                    Role = ChatRole.Assistant,
+                    ModelId = modelId,
+                    Contents = [new TextReasoningContent(chunk.ReasoningDelta)]
+                };
+            }
+
             if (chunk.Text is not null)
             {
                 yield return new ChatResponseUpdate
                 {
                     Role = ChatRole.Assistant,
+                    ModelId = modelId,
                     Contents = [new TextContent(chunk.Text)]
                 };
             }
@@ -131,6 +174,7 @@ public sealed class GeneratorChatClient : IChatClient
                     yield return new ChatResponseUpdate
                     {
                         Role = ChatRole.Assistant,
+                        ModelId = modelId,
                         Contents = BuildToolCallContents(toolCallAccumulator),
                         FinishReason = finishReason
                     };
@@ -138,7 +182,7 @@ public sealed class GeneratorChatClient : IChatClient
                 }
                 else
                 {
-                    yield return new ChatResponseUpdate { FinishReason = finishReason };
+                    yield return new ChatResponseUpdate { ModelId = modelId, FinishReason = finishReason };
                 }
             }
         }
@@ -159,6 +203,10 @@ public sealed class GeneratorChatClient : IChatClient
     public object? GetService(Type serviceType, object? serviceKey = null)
     {
         ArgumentNullException.ThrowIfNull(serviceType);
+        if (serviceType == typeof(ChatClientMetadata))
+        {
+            return Metadata;
+        }
         return serviceType == typeof(IChatClient) ? this : null;
     }
 
@@ -217,14 +265,16 @@ public sealed class GeneratorChatClient : IChatClient
         }
     }
 
-    private static LmGenerationOptions? ConvertOptions(ChatOptions? options)
+    private static LmGenerationOptions ConvertOptions(ChatOptions? options)
     {
+        var genOptions = new LmGenerationOptions();
         if (options is null)
         {
-            return null;
+            // No caller options: everything stays at lm-supply's defaults except reasoning extraction,
+            // which is requested so a streaming thinking model's reasoning reaches the consumer.
+            genOptions.ExtractReasoningTokens = true;
+            return genOptions;
         }
-
-        var genOptions = new LmGenerationOptions();
 
         // Output cap → MaxNewTokens (self-documenting; lm-supply resolves MaxNewTokens ?? MaxTokens).
         if (options.MaxOutputTokens.HasValue)
@@ -267,6 +317,18 @@ public sealed class GeneratorChatClient : IChatClient
             genOptions.StopSequences = [.. options.StopSequences];
         }
 
+        // Standard M.E.AI reasoning control → lm-supply ThinkingMode. lm-supply has no effort levels,
+        // only off / model default / on: None turns thinking off, any effort turns it on, null keeps
+        // the model's default. Reasoning deltas are only produced by lm-supply when extraction is
+        // requested, so it is requested whenever the caller has not asked for the reasoning to be dropped.
+        genOptions.Thinking = options.Reasoning?.Effort switch
+        {
+            null => genOptions.Thinking,
+            ReasoningEffort.None => LmThinkingMode.Off,
+            _ => LmThinkingMode.On,
+        };
+        genOptions.ExtractReasoningTokens = CarriesReasoning(options);
+
         // lm-supply native sampler params (no standard M.E.AI surface) via the provider-specific
         // AdditionalProperties bag. Keys match lm-supply property names in snake_case. Defaults
         // (RepetitionPenalty=1.1, MinP=0.05) are preserved when unset.
@@ -303,6 +365,13 @@ public sealed class GeneratorChatClient : IChatClient
 
         return genOptions;
     }
+
+    /// <summary>
+    /// Whether reasoning content is carried back to the caller: yes unless the caller set
+    /// <see cref="ReasoningOptions.Output"/> to <see cref="ReasoningOutput.None"/>.
+    /// </summary>
+    private static bool CarriesReasoning(ChatOptions? options)
+        => options?.Reasoning?.Output is not ReasoningOutput.None;
 
     private static bool TryToFloat(object? value, out float result)
     {

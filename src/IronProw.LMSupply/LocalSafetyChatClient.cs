@@ -9,6 +9,7 @@ namespace IronProw.LMSupply;
 ///   <item><term>Readiness gate</term><description>Throws <see cref="InvalidOperationException"/> if <see cref="IReadinessProbe.IsReadyAsync"/> returns <see langword="false"/>.</description></item>
 ///   <item><term>Model-ID preflight</term><description>Throws <see cref="InvalidOperationException"/> when <c>ChatOptions.ModelId</c> is set but not in the set reported by <see cref="IReadinessProbe.GetAvailableModelIdsAsync"/>.</description></item>
 ///   <item><term>Length-bounding</term><description>Injects <see cref="LocalSafetyOptions.DefaultMaxOutputTokens"/> when the caller leaves <c>ChatOptions.MaxOutputTokens</c> unset, preventing unbounded generation on constrained local hardware.</description></item>
+///   <item><term>Reasoning default</term><description>Injects <see cref="LocalSafetyOptions.DefaultReasoningEffort"/> when the caller leaves <c>ChatOptions.Reasoning</c> unset, so the bounded budget goes to the answer rather than to a thinking model's reasoning.</description></item>
 /// </list>
 /// <para>
 /// <b>Crash-fallback limitation:</b> True ONNX GenAI DirectML inference-crash CPU-fallback is an
@@ -57,10 +58,21 @@ public sealed class LocalSafetyChatClient(IChatClient inner, LocalSafetyOptions 
                     $"Model '{modelId}' is not available locally. Available: {string.Join(", ", available)}");
         }
 
-        if (options?.MaxOutputTokens is null)
+        // Both defaults apply only where the caller left the slot empty, and both write into a clone so the
+        // caller's ChatOptions instance is never mutated.
+        var injectMaxOutputTokens = options?.MaxOutputTokens is null;
+        var injectReasoning = _options.DefaultReasoningEffort is not null && options?.Reasoning is null;
+        if (injectMaxOutputTokens || injectReasoning)
         {
             options = options?.Clone() ?? new ChatOptions();
-            options.MaxOutputTokens = _options.DefaultMaxOutputTokens;
+            if (injectMaxOutputTokens)
+            {
+                options.MaxOutputTokens = _options.DefaultMaxOutputTokens;
+            }
+            if (injectReasoning)
+            {
+                options.Reasoning = new ReasoningOptions { Effort = _options.DefaultReasoningEffort };
+            }
         }
 
         return options;
