@@ -5,7 +5,12 @@ namespace IronProw.Core;
 
 /// <summary>
 /// The guarded gateway client. Selects a provider in priority order, wrapping each attempt with
-/// guard + resilience, and degrades to the next provider on fallback-eligible failures.
+/// guard + resilience, and degrades to the next provider on fallback-eligible failures. Remembers
+/// provider health across calls: a provider that failed <see cref="ResilienceOptions.FailureThreshold"/>
+/// times in a row is demoted behind the healthy ones for <see cref="ResilienceOptions.Cooldown"/>
+/// (reported as <see cref="ProwTransitionKind.Skipped"/>), so a dead provider does not cost every call
+/// its retry budget. Health memory is per gateway instance and only applies when fallback is enabled —
+/// with fallback disabled the gateway never routes around a provider, not even a cooling one.
 /// </summary>
 public sealed class SelectingChatClient(
     IServiceProvider services,
@@ -13,16 +18,19 @@ public sealed class SelectingChatClient(
     IProviderSelector selector,
     IGuard guard,
     IErrorClassifier classifier,
-    IronProwOptions options) : IChatClient
+    IronProwOptions options,
+    TimeProvider? timeProvider = null) : IChatClient
 {
     private readonly IronProwOptions _options = options ?? throw new ArgumentNullException(nameof(options));
+    private readonly ProviderHealthTracker _health = new(
+        (options ?? throw new ArgumentNullException(nameof(options))).Resilience, timeProvider ?? TimeProvider.System);
 
     /// <inheritdoc />
     public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         var list = messages as IReadOnlyList<ChatMessage> ?? messages.ToList();
-        var order = selector.Order(new ChatSelectionContext(list, options, registry.GetOrdered()));
+        var order = Arrange(selector.Order(new ChatSelectionContext(list, options, registry.GetOrdered())));
         if (order.Count == 0)
             throw new InvalidOperationException("No inference providers are registered.");
 
@@ -33,7 +41,9 @@ public sealed class SelectingChatClient(
             var attemptClient = BuildAttempt(reg, i, order.Count);
             try
             {
-                return await attemptClient.GetResponseAsync(list, options, cancellationToken).ConfigureAwait(false);
+                var response = await attemptClient.GetResponseAsync(list, options, cancellationToken).ConfigureAwait(false);
+                _health.RecordSuccess(reg.Id);
+                return response;
             }
             catch (Exception ex)
             {
@@ -44,6 +54,7 @@ public sealed class SelectingChatClient(
                 // per-provider retries must not silently route to a different provider/ProviderKind).
                 if (!_options.EnableFallback)
                     throw;
+                _health.RecordFailure(reg.Id);
                 last = ex; // try next candidate
                 var isLast = i == order.Count - 1;
                 Report(new ProwTransition(
@@ -60,7 +71,7 @@ public sealed class SelectingChatClient(
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var list = messages as IReadOnlyList<ChatMessage> ?? messages.ToList();
-        var order = selector.Order(new ChatSelectionContext(list, options, registry.GetOrdered()));
+        var order = Arrange(selector.Order(new ChatSelectionContext(list, options, registry.GetOrdered())));
         if (order.Count == 0)
             throw new InvalidOperationException("No inference providers are registered.");
 
@@ -94,6 +105,7 @@ public sealed class SelectingChatClient(
                     // per-provider retries must not silently route to a different provider/ProviderKind).
                     if (!_options.EnableFallback)
                         throw;
+                    _health.RecordFailure(reg.Id);
                     last = ex; // try next candidate
                     var isLast = i == order.Count - 1;
                     Report(new ProwTransition(
@@ -102,12 +114,53 @@ public sealed class SelectingChatClient(
                     break; // dispose this enumerator, then advance to the next provider
                 }
                 if (!hasNext)
+                {
+                    _health.RecordSuccess(reg.Id);
                     yield break; // stream completed on this provider
+                }
+                if (!yielded)
+                {
+                    // The first chunk proves the provider answered; a later mid-stream failure propagates
+                    // to the caller and is not a routing signal.
+                    _health.RecordSuccess(reg.Id);
+                }
                 yielded = true;
                 yield return update!;
             }
         }
         throw last ?? new InvalidOperationException("All providers failed.");
+    }
+
+    /// <summary>
+    /// Demotes cooling providers behind the healthy ones (never removes them) and reports each demotion
+    /// as <see cref="ProwTransitionKind.Skipped"/>. A no-op with health memory off or fallback disabled.
+    /// </summary>
+    private IReadOnlyList<ProviderRegistration> Arrange(IReadOnlyList<ProviderRegistration> order)
+    {
+        if (!_health.Enabled || !_options.EnableFallback || order.Count < 2)
+            return order;
+
+        List<(ProviderRegistration Reg, int Index)>? cooling = null;
+        for (var i = 0; i < order.Count; i++)
+        {
+            if (_health.IsCoolingDown(order[i].Id))
+                (cooling ??= []).Add((order[i], i));
+        }
+        if (cooling is null)
+            return order;
+
+        var arranged = new List<ProviderRegistration>(order.Count);
+        foreach (var reg in order)
+        {
+            if (!_health.IsCoolingDown(reg.Id))
+                arranged.Add(reg);
+        }
+        foreach (var (reg, index) in cooling)
+        {
+            Report(new ProwTransition(ProwTransitionKind.Skipped, reg.Id, index, order.Count, ErrorClassification.FallbackEligible, null));
+            arranged.Add(reg);
+        }
+        return arranged;
     }
 
     private ResilienceChatClient BuildAttempt(ProviderRegistration reg, int index, int total)

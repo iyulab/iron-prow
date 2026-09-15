@@ -8,11 +8,17 @@ public enum ProwTransitionKind
     /// <summary>The gateway degraded from one provider to the next in priority order.</summary>
     Fallback,
     /// <summary>The last provider in the order failed; the gateway is about to surface the failure.</summary>
-    Exhausted
+    Exhausted,
+    /// <summary>
+    /// A provider was passed over for this call because it is cooling down after
+    /// <see cref="ResilienceOptions.FailureThreshold"/> consecutive failures (demoted behind the healthy
+    /// providers; still tried when none of them succeeds).
+    /// </summary>
+    Skipped
 }
 
 /// <summary>
-/// A structured gateway transition event (retry / fallback / exhausted), surfaced to consumers so they
+/// A structured gateway transition event (retry / fallback / exhausted / skipped), surfaced to consumers so they
 /// can render resilience feedback (e.g. UI chips that show which provider is in use and why it switched).
 /// Reporting is best-effort: a consumer callback that throws is swallowed and never breaks inference.
 /// </summary>

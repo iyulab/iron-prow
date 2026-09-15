@@ -16,6 +16,11 @@ public sealed class DefaultErrorClassifier : IErrorClassifier
         TaskCanceledException { InnerException: TimeoutException } => ErrorClassification.Retryable,
         // Any other cancellation (user token) -> terminal, never retried or fallen back.
         OperationCanceledException => ErrorClassification.Terminal,
+        // A refused connection or an unresolvable host is not transient on the time scale of a retry
+        // (the endpoint is down, not busy) -> degrade to the next provider instead of paying the retry
+        // budget; the health tracker then keeps the dead provider demoted.
+        HttpRequestException { HttpRequestError: HttpRequestError.ConnectionError or HttpRequestError.NameResolutionError }
+            => ErrorClassification.FallbackEligible,
         HttpRequestException => ErrorClassification.Retryable,
         TimeoutException => ErrorClassification.Retryable,
         _ => ErrorClassification.FallbackEligible

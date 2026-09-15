@@ -144,12 +144,16 @@ services.AddIronProw()
             opt.EnableFallback = true;                              // 기본값
             opt.Resilience.MaxRetries = 3;                         // 기본값: 2
             opt.Resilience.BaseDelay = TimeSpan.FromMilliseconds(300); // 기본값: 200ms
+            opt.Resilience.FailureThreshold = 3;                   // 연속 실패 N회면 cooldown (기본값: 3, 0 = 끔)
+            opt.Resilience.Cooldown = TimeSpan.FromSeconds(30);    // cooldown 동안 후순위 (기본값: 30s)
             opt.OnTransition = t =>                                 // retry/fallback/exhausted 이벤트 (UI 칩 등)
                 Console.WriteLine($"[{t.Kind}] {t.ProviderId} ({t.ProviderIndex + 1}/{t.TotalProviders})");
         });
 ```
 
-`OnTransition`(선택)은 각 게이트웨이 전환(retry / fallback / exhausted)마다 호출되는 best-effort 콜백이다. 소비자가 어느 provider로 강등됐는지 UI에 표시(예: resilience 칩)할 수 있다. 콜백이 던지는 예외는 삼켜지며 추론을 절대 깨지 않는다. 미설정 시 동작은 기존과 동일(무보고).
+**provider 건강 기억**(0.4.0+): 게이트웨이는 provider 별 연속 실패를 기억한다. `FailureThreshold` 회 연속으로 강등 대상 실패(retry 소진·fallback-eligible)가 나면 그 provider 는 `Cooldown` 동안 **후순위**로 밀린다 — 제외가 아니라 후순위라 건강한 provider 가 하나도 없으면 여전히 시도되고, 한 번 성공하면 기록이 지워진다. 그 전엔 죽은 LAN provider 가 **매 호출**에 retry 예산(기본 2회 + backoff)을 물린 뒤에야 다음 provider 로 넘어갔다. 밀린 provider 는 `OnTransition` 에 `ProwTransitionKind.Skipped` 로 보고된다. `EnableFallback = false` 면 건강 기억도 라우팅에 쓰지 않는다(그 설정의 뜻이 «절대 provider 를 바꾸지 않는다»라서). 연결 거부·이름 해석 실패(`HttpRequestError.ConnectionError`/`NameResolutionError`)는 retry 가 아니라 즉시 fallback 으로 분류된다 — 엔드포인트가 바쁜 게 아니라 없는 것이라서.
+
+`OnTransition`(선택)은 각 게이트웨이 전환(retry / fallback / exhausted / skipped)마다 호출되는 best-effort 콜백이다. 소비자가 어느 provider로 강등됐는지 UI에 표시(예: resilience 칩)할 수 있다. 콜백이 던지는 예외는 삼켜지며 추론을 절대 깨지 않는다. 미설정 시 동작은 기존과 동일(무보고).
 
 **스트리밍 동등성**: retry·fallback은 `GetResponseAsync`와 `GetStreamingResponseAsync` 양쪽에 동일하게 적용된다. 스트리밍의 복원력 창은 **"첫 `ChatResponseUpdate`가 yield되기 전"** 이다 — 첫 청크 이전에 발생한 실패(예: OpenAI 호환 호출이 첫 `MoveNextAsync`에서 던지는 connection-refused / 404 / model-not-found)는 same-provider retry(Retryable) 또는 next-provider fallback(FallbackEligible)으로 처리된다. 첫 청크가 emit된 뒤의 실패는 provider를 바꾸면 이중 emit이 되므로 그대로 전파된다.
 
