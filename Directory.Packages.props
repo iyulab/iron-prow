@@ -14,13 +14,13 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="2.3.3" />
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
-    <PackageVersion Include="FluxGuard" Version="0.14.2" />
+    <PackageVersion Include="FluxGuard" Version="0.15.0" />
     <!-- IronHive provider packages — unified-version family, all at the same version -->
-    <PackageVersion Include="IronHive.Core" Version="0.27.0" />
-    <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.27.0" />
-    <PackageVersion Include="IronHive.Providers.OpenAI.Compatible" Version="0.27.0" />
-    <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.27.0" />
-    <PackageVersion Include="IronHive.Providers.GoogleAI" Version="0.27.0" />
+    <PackageVersion Include="IronHive.Core" Version="0.28.0" />
+    <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.28.0" />
+    <PackageVersion Include="IronHive.Providers.OpenAI.Compatible" Version="0.28.0" />
+    <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.28.0" />
+    <PackageVersion Include="IronHive.Providers.GoogleAI" Version="0.28.0" />
     <!-- LMSupply local-inference packages -->
     <PackageVersion Include="LMSupply.Generator" Version="0.66.1" />
   </ItemGroup>
