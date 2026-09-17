@@ -12,4 +12,7 @@
   <ItemGroup>
     <PackageReference Include="LMSupply.Generator" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="IronProw.LMSupply.Tests" />
+  </ItemGroup>
 </Project>

@@ -126,6 +126,40 @@ public class GeneratorChatClientTests
         sut.GetService(typeof(string)).Should().BeNull();
     }
 
+    // A structured tool result (the shape the IronHive bridge keeps for image results since 0.26.0) used to
+    // reach the local model as the CLR type name "Microsoft.Extensions.AI.AIContent[]" — ToString() of a list.
+    [Fact]
+    public async Task Structured_tool_result_is_flattened_to_text_not_the_clr_type_name()
+    {
+        var gen = new FakeTextGenerator { CompletionContent = "ok" };
+        var sut = new GeneratorChatClient(gen);
+        var result = new List<AIContent>
+        {
+            new TextContent("front page"),
+            new DataContent(new byte[] { 1, 2, 3 }, "image/png"),
+        };
+
+        await sut.GetResponseAsync([
+                new(ChatRole.Assistant, [new FunctionCallContent("call-1", "read_image")]),
+                new(ChatRole.Tool, [new FunctionResultContent("call-1", result)]),
+            ], cancellationToken: TestContext.Current.CancellationToken);
+
+        var toolMessage = gen.LastMessages.Should().ContainSingle(m => m.Role == LmChatRole.Tool).Subject;
+        toolMessage.Content.Should().NotContain("AIContent");
+        toolMessage.Content.Should().StartWith("front page");
+        toolMessage.Content.Should().Contain("image/png").And.Contain("omitted");
+    }
+
+    [Theory]
+    [InlineData("plain", "plain")]
+    [InlineData(42, "42")]
+    public void FlattenToolResult_keeps_strings_and_renders_scalars(object result, string expected)
+        => GeneratorChatClient.FlattenToolResult(result).Should().Be(expected);
+
+    [Fact]
+    public void FlattenToolResult_renders_a_poco_as_json_not_its_type_name()
+        => GeneratorChatClient.FlattenToolResult(new { temperature = 22 }).Should().Be("{\"temperature\":22}");
+
     private sealed class FakeTextGenerator : ITextGenerator
     {
         public string ModelId => "fake-model";

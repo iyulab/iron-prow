@@ -216,6 +216,43 @@ public sealed class GeneratorChatClient : IChatClient
         // Generator lifecycle is owned by the caller; nothing to dispose here.
     }
 
+    /// <summary>
+    /// Renders a <see cref="FunctionResultContent.Result"/> as the text a local text-only model can read.
+    /// A structured result (<see cref="AIContent"/> or a list of them — the shape the IronHive bridge keeps
+    /// for image tool results) is flattened block by block: text as text, anything else as a placeholder that
+    /// names what was left out. <c>ToString()</c> on a list yields the CLR type name
+    /// (<c>Microsoft.Extensions.AI.AIContent[]</c>), which is what the model used to be sent.
+    /// </summary>
+    internal static string FlattenToolResult(object? result) => result switch
+    {
+        null => string.Empty,
+        string text => text,
+        AIContent single => FlattenContents([single]),
+        IEnumerable<AIContent> many => FlattenContents(many),
+        JsonElement element => element.ValueKind == JsonValueKind.String ? element.GetString() ?? string.Empty : element.GetRawText(),
+        _ => SerializeOrToString(result),
+    };
+
+    private static string FlattenContents(IEnumerable<AIContent> contents)
+        => string.Join("\n", contents.Select(c => c switch
+        {
+            TextContent text => text.Text ?? string.Empty,
+            DataContent data => $"[{data.MediaType ?? "binary"} content omitted — {data.Data.Length} bytes; this model cannot read it]",
+            _ => $"[{c.GetType().Name} content omitted — not representable as text]",
+        }));
+
+    private static string SerializeOrToString(object value)
+    {
+        try
+        {
+            return JsonSerializer.Serialize(value, value.GetType());
+        }
+        catch (Exception ex) when (ex is NotSupportedException or JsonException)
+        {
+            return value.ToString() ?? string.Empty;
+        }
+    }
+
     private static IEnumerable<LmChatMessage> ConvertMessages(IEnumerable<ChatMessage> messages, ChatOptions? options)
     {
         // M.E.AI standard ChatOptions.Instructions: emit as a leading System message so downstream
@@ -248,7 +285,7 @@ public sealed class GeneratorChatClient : IChatClient
             {
                 foreach (var fr in functionResults)
                 {
-                    yield return LmChatMessage.ToolResult(fr.CallId ?? "", fr.Result?.ToString() ?? "");
+                    yield return LmChatMessage.ToolResult(fr.CallId ?? "", FlattenToolResult(fr.Result));
                 }
                 continue;
             }
