@@ -15,7 +15,7 @@
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
     <PackageVersion Include="Iyu.Conventions.Testing" Version="0.1.0" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
-    <PackageVersion Include="FluxGuard" Version="0.16.0" />
+    <PackageVersion Include="FluxGuard" Version="0.17.0" />
     <!-- IronHive provider packages — unified-version family, all at the same version -->
     <PackageVersion Include="IronHive.Core" Version="0.33.0" />
     <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.33.0" />
