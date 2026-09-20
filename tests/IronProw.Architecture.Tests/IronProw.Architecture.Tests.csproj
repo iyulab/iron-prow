@@ -12,8 +12,14 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Microsoft.Testing.Extensions.HangDump" />
     <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Iyu.Conventions.Testing" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/IronProw.Core/IronProw.Core.csproj" />
+    <!-- The adapters are referenced for the options roster only; CorePurityTests walks Core's own
+         reference closure and is unaffected by what sits next to it. -->
+    <ProjectReference Include="../../src/IronProw.FluxGuard/IronProw.FluxGuard.csproj" />
+    <ProjectReference Include="../../src/IronProw.IronHive/IronProw.IronHive.csproj" />
+    <ProjectReference Include="../../src/IronProw.LMSupply/IronProw.LMSupply.csproj" />
   </ItemGroup>
 </Project>
