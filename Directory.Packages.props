@@ -17,11 +17,11 @@
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="FluxGuard" Version="0.17.0" />
     <!-- IronHive provider packages — unified-version family, all at the same version -->
-    <PackageVersion Include="IronHive.Core" Version="0.33.0" />
-    <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.33.0" />
-    <PackageVersion Include="IronHive.Providers.OpenAI.Compatible" Version="0.33.0" />
-    <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.33.0" />
-    <PackageVersion Include="IronHive.Providers.GoogleAI" Version="0.33.0" />
+    <PackageVersion Include="IronHive.Core" Version="0.33.1" />
+    <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.33.1" />
+    <PackageVersion Include="IronHive.Providers.OpenAI.Compatible" Version="0.33.1" />
+    <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.33.1" />
+    <PackageVersion Include="IronHive.Providers.GoogleAI" Version="0.33.1" />
     <!-- LMSupply local-inference packages -->
     <PackageVersion Include="LMSupply.Generator" Version="0.72.0" />
   </ItemGroup>
