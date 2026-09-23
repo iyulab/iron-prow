@@ -211,6 +211,10 @@ public class GeneratorChatClientTests
             => throw new NotSupportedException();
         public Task<string> GenerateChatCompleteAsync(IEnumerable<LmChatMessage> messages, LmGenerationOptions? options = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+        public Task<global::LMSupply.Generator.Models.GenerationResult> GenerateCompleteResultAsync(string prompt, LmGenerationOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+        public Task<global::LMSupply.Generator.Models.GenerationResult> GenerateChatCompleteResultAsync(IEnumerable<LmChatMessage> messages, LmGenerationOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
         public Task WarmupAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
