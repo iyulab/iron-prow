@@ -146,12 +146,23 @@ services.AddIronProw()
             opt.Resilience.BaseDelay = TimeSpan.FromMilliseconds(300); // 기본값: 200ms
             opt.Resilience.FailureThreshold = 3;                   // 연속 실패 N회면 cooldown (기본값: 3, 0 = 끔)
             opt.Resilience.Cooldown = TimeSpan.FromSeconds(30);    // cooldown 동안 후순위 (기본값: 30s)
+            opt.Resilience.MaxRetryAfter = TimeSpan.FromSeconds(10); // provider 의 Retry-After 를 기다리는 상한 (기본값: 10s)
             opt.OnTransition = t =>                                 // retry/fallback/exhausted 이벤트 (UI 칩 등)
                 Console.WriteLine($"[{t.Kind}] {t.ProviderId} ({t.ProviderIndex + 1}/{t.TotalProviders})");
         });
 ```
 
 **provider 건강 기억**(0.4.0+): 게이트웨이는 provider 별 연속 실패를 기억한다. `FailureThreshold` 회 연속으로 강등 대상 실패(retry 소진·fallback-eligible)가 나면 그 provider 는 `Cooldown` 동안 **후순위**로 밀린다 — 제외가 아니라 후순위라 건강한 provider 가 하나도 없으면 여전히 시도되고, 한 번 성공하면 기록이 지워진다. 그 전엔 죽은 LAN provider 가 **매 호출**에 retry 예산(기본 2회 + backoff)을 물린 뒤에야 다음 provider 로 넘어갔다. 밀린 provider 는 `OnTransition` 에 `ProwTransitionKind.Skipped` 로 보고된다. `EnableFallback = false` 면 건강 기억도 라우팅에 쓰지 않는다(그 설정의 뜻이 «절대 provider 를 바꾸지 않는다»라서). 연결 거부·이름 해석 실패(`HttpRequestError.ConnectionError`/`NameResolutionError`)는 retry 가 아니라 즉시 fallback 으로 분류된다 — 엔드포인트가 바쁜 게 아니라 없는 것이라서.
+
+**HTTP 상태별 분류**(0.5.0+): HTTP 실패는 예외 타입이 아니라 **상태 코드**로 분류된다 — OpenAI SDK 의 `ClientResultException`, `HttpRequestException.StatusCode`, ironhive 의 `RateLimitException`(`AddIronHive*` 가 등록하는 `IronHiveHttpFailureReader`) 모두 같은 규칙이다.
+
+| 상태 | 분류 |
+|---|---|
+| 408 · 500 · 502 · 504 | 같은 provider 에서 retry |
+| 429 · 503 | provider 가 retry 힌트(`Retry-After` / `retry-after-ms`)를 보냈으면 그만큼 기다려 retry(`MaxRetryAfter` 초과면 retry 없이 다음 provider), 없으면 즉시 다음 provider |
+| 그 밖(400 · 401 · 403 · 404 · 409 …) | 다음 provider (한 provider 의 거절은 다른 provider 도 거절한다는 증거가 아니다) |
+
+retry 를 다 쓴 실패도 다음 provider 로 넘어간다. 상태에 도메인 의미를 주는 provider(예: 다운로드 승인 전까지 409 를 내는 로컬 provider)는 소비자가 `IErrorClassifier` 를 데코레이트해 그 코드만 다르게 분류한다. 다른 예외 타입이 HTTP 실패를 나르면 `IHttpFailureReader` 를 `TryAddEnumerable` 로 등록한다.
 
 `OnTransition`(선택)은 각 게이트웨이 전환(retry / fallback / exhausted / skipped)마다 호출되는 best-effort 콜백이다. 소비자가 어느 provider로 강등됐는지 UI에 표시(예: resilience 칩)할 수 있다. 콜백이 던지는 예외는 삼켜지며 추론을 절대 깨지 않는다. 미설정 시 동작은 기존과 동일(무보고).
 

@@ -4,6 +4,31 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.5.0] - unreleased
+
+### Changed
+- **HTTP failures are classified by status code, whatever exception carries it.** The OpenAI SDK's
+  `ClientResultException` used to be fallback-eligible for every status (a 500 was never retried on the same
+  provider), and every `HttpRequestException` was retryable (a 401 was retried). Now, for
+  `ClientResultException`, `HttpRequestException.StatusCode` and ironhive's `RateLimitException`:
+  408/500/502/504 retry on the same provider; 429/503 retry only when the provider sent a retry hint, otherwise the
+  gateway moves to the next provider at once; any other status (400, 401, 403, 404, 409, …) moves to the next
+  provider. A consumer that gives a status a domain meaning decorates `IErrorClassifier` for those codes.
+- **A retry waits the provider's `Retry-After` / `retry-after-ms`** when it is longer than the backoff, up to the new
+  `ResilienceOptions.MaxRetryAfter` (default 10 s); a longer hint is not waited — the gateway moves to the next
+  provider.
+
+### Added
+- **`IHttpFailureReader` / `HttpFailure`** — how the gateway learns the status and retry hint an exception describes.
+  `AddIronProw()` registers `HttpStatusFailureReader` (`ClientResultException`, `HttpRequestException`); every
+  `AddIronHive*` method registers `IronHiveHttpFailureReader` (`RateLimitException`). Register your own with
+  `TryAddEnumerable`. `DefaultErrorClassifier` takes the readers (`new DefaultErrorClassifier(readers)`);
+  `ResilienceChatClient` takes them as an optional last argument.
+- **`IronProwBuilder.Services`** — the service collection, for adapters that contribute gateway services.
+
+### Dependencies
+- `IronProw.Core` references `System.ClientModel` 1.14.0 (the floor the OpenAI SDK 2.12/2.13 already carries).
+
 ## [0.4.22] - 2026-09-24
 
 ### Changed

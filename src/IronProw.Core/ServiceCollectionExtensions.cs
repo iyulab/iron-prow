@@ -14,7 +14,8 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.TryAddSingleton<IProviderSelector, DefaultProviderSelector>();
-        services.TryAddSingleton<IErrorClassifier, DefaultErrorClassifier>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHttpFailureReader, HttpStatusFailureReader>());
+        services.TryAddSingleton<IErrorClassifier>(sp => new DefaultErrorClassifier(sp.GetServices<IHttpFailureReader>()));
         services.TryAddSingleton<IGuard, NullGuard>();
 
         services.TryAddSingleton<IProviderRegistry>(sp =>

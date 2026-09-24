@@ -12,6 +12,12 @@ public sealed class IronProwBuilder
 
     internal IronProwBuilder(IServiceCollection services) => _services = services;
 
+    /// <summary>
+    /// The service collection the gateway is registered in — for provider adapters that contribute gateway services
+    /// (for example an <see cref="IHttpFailureReader"/> for the exceptions their providers throw).
+    /// </summary>
+    public IServiceCollection Services => _services;
+
     /// <summary>Registers an inference provider candidate.</summary>
     public IronProwBuilder AddProvider(string id, ProviderKind kind, int priority, Func<IServiceProvider, IChatClient> factory)
     {

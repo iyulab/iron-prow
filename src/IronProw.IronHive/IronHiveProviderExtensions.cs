@@ -5,6 +5,8 @@ using IronHive.Providers.OpenAI;
 using IronHive.Providers.OpenAI.Compatible;
 using IronHive.Providers.OpenAI.Compatible.GpuStack;
 using IronProw.Core;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace IronProw.IronHive;
 
@@ -32,6 +34,7 @@ public static class IronHiveProviderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IHttpFailureReader, IronHiveHttpFailureReader>());
         return builder.AddProvider(id, ProviderKind.Frontier, priority, _ =>
         {
             // Preserve the deployed wire protocol: this adapter has always spoken Chat Completions
@@ -67,6 +70,7 @@ public static class IronHiveProviderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IHttpFailureReader, IronHiveHttpFailureReader>());
         return builder.AddProvider(id, ProviderKind.Frontier, priority, _ =>
         {
             var config = new AnthropicConfig();
@@ -95,6 +99,7 @@ public static class IronHiveProviderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IHttpFailureReader, IronHiveHttpFailureReader>());
         return builder.AddProvider(id, ProviderKind.Frontier, priority, _ =>
         {
             var config = new GoogleAIConfig();
@@ -125,6 +130,7 @@ public static class IronHiveProviderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IHttpFailureReader, IronHiveHttpFailureReader>());
         return builder.AddProvider(id, ProviderKind.Lan, priority, _ =>
         {
             var config = new GpuStackConfig();
@@ -159,6 +165,7 @@ public static class IronHiveProviderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IHttpFailureReader, IronHiveHttpFailureReader>());
         return builder.AddProvider(id, ProviderKind.Lan, priority, _ =>
         {
             var config = new OpenAICompatibleConfig();

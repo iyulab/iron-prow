@@ -21,6 +21,7 @@ public sealed class SelectingChatClient : IChatClient
     private readonly IErrorClassifier classifier;
     private readonly IronProwOptions _options;
     private readonly ProviderHealthTracker _health;
+    private readonly IReadOnlyList<IHttpFailureReader> _failureReaders;
 
     /// <summary>Creates a gateway that owns its own provider health memory.</summary>
     public SelectingChatClient(
@@ -55,6 +56,9 @@ public sealed class SelectingChatClient : IChatClient
         this.classifier = classifier;
         _options = Require(options);
         _health = health ?? throw new ArgumentNullException(nameof(health));
+        // The readers AddIronProw (and provider adapters) registered; a hand-built gateway gets the built-in one.
+        var readers = (services?.GetService(typeof(IEnumerable<IHttpFailureReader>)) as IEnumerable<IHttpFailureReader>)?.ToArray();
+        _failureReaders = readers is { Length: > 0 } ? readers : HttpFailureReaders.BuiltIn;
     }
 
     private static IronProwOptions Require(IronProwOptions options)
@@ -207,7 +211,7 @@ public sealed class SelectingChatClient : IChatClient
             ? null
             : (attempt, ex) => Report(new ProwTransition(
                 ProwTransitionKind.Retry, reg.Id, index, total, ErrorClassification.Retryable, ex, attempt));
-        return new ResilienceChatClient(guarded, classifier, _options.Resilience, onRetry);
+        return new ResilienceChatClient(guarded, classifier, _options.Resilience, onRetry, _failureReaders);
     }
 
     private void Report(ProwTransition transition)

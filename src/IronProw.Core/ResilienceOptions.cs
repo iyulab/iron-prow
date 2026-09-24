@@ -10,6 +10,13 @@ public sealed class ResilienceOptions
     public TimeSpan BaseDelay { get; set; } = TimeSpan.FromMilliseconds(200);
 
     /// <summary>
+    /// The longest provider retry hint (<c>Retry-After</c>, see <see cref="IHttpFailureReader"/>) a retry waits. A retryable
+    /// failure whose hint is longer is not retried on that provider — the gateway degrades to the next one instead of
+    /// holding the call. A hint shorter than the backoff delay waits the backoff. Default 10 seconds.
+    /// </summary>
+    public TimeSpan MaxRetryAfter { get; set; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>
     /// Consecutive degrading failures (retryable exhausted or fallback-eligible) after which a provider
     /// is put into cooldown and demoted behind the healthy providers for <see cref="Cooldown"/>. A cooling
     /// provider is still tried when no healthy one remains, and any success clears its record. Without this
