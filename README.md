@@ -191,6 +191,19 @@ await client.GetResponseAsync(msgs, options, ct);                    // guarded:
 - 반환된 client는 매 요청 build(연결 없음·저비용)다. consumer가 provider factory에서 `HttpClient` 등 disposable을 쥐면 수명은 consumer 책임이다.
 - 단일 테넌트 경로(`AddProvider`/`AddLMSupplyLocal`, singleton `IChatClient`)는 완전 무변경으로 병존한다.
 
+### 반복 퇴화 정지 (0.6.0+, opt-in)
+
+작은 로컬 모델은 같은 단어·구절을 토큰 상한까지 반복하는 퇴화에 빠지곤 한다("concisely concisely concisely …"). `WithDegenerationStop()`은 어떤 `IChatClient`든(게이트웨이 포함) 감싸서, 출력 끝이 짧은 단위(≤ 60자, 글자 포함)의 4회 이상 연속 반복이 되면 생성을 멈춘다. 검사 대상은 출력의 마지막 240자다. Markdown 구조와 구두점 연속(`----`, `| --- |`, `====`, `....`)은 반복으로 보지 않는다. 판정은 좋은 답을 끊지 않는 쪽으로 치우쳐 있다.
+
+```csharp
+IChatClient chat = sp.GetRequiredService<IChatClient>().WithDegenerationStop(o => o.MinRepeats = 4);
+// ChatClientBuilder 에서는: builder.Use(inner => new DegenerationStopChatClient(inner))
+```
+
+멈춤은 조용한 끝이 아니라 **신호**다. 스트리밍의 마지막 업데이트와 비스트리밍 응답의 `FinishReason`이 `DegenerationStopChatClient.FinishReason`("degeneration")이 되고, 반복된 단위는 `AdditionalProperties[DegenerationStopChatClient.RepeatedUnitKey]`에 실린다. 이미 내보낸 텍스트는 그대로 두고, 안쪽 스트림을 버려 생성을 취소한다. 비스트리밍 호출도 안쪽 스트림으로 받아 조기에 멈춘다. 판정만 필요하면 `DegenerationDetector.FindRepeatingUnit(text)`를 쓴다.
+
+예방 쪽은 로컬 경로(`IronProw.LMSupply`)의 샘플러다. `ChatOptions.FrequencyPenalty`/`PresencePenalty`가 전달되고, lm-supply 고유의 `repetition_penalty`(기본 1.1)는 `ChatOptions.AdditionalProperties["repetition_penalty"]`로 준다.
+
 ## Crash-fallback 제한
 
 `LocalSafetyChatClient`(갈래 B)는 `IReadinessProbe`로 로컬 추론 불가를 감지하고, 게이트웨이 `SelectingChatClient`의 provider-level fallback으로 승격한다. **이것은 게이트웨이 수준 fallback(M2-4 범위)이다.**

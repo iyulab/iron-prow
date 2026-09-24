@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.6.0] - unreleased
+
+### Added
+- **`WithDegenerationStop()` / `DegenerationStopChatClient` stops a generation stuck repeating itself** (opt-in, on any
+  `IChatClient` including the gateway). When the output ends in four or more back-to-back copies of a short unit
+  (≤ 60 characters, containing a letter, within the last 240 characters), the inner stream is abandoned and the
+  stop is reported: `FinishReason` is `DegenerationStopChatClient.FinishReason` ("degeneration") and the unit is under
+  `AdditionalProperties[RepeatedUnitKey]`. Markdown structure and punctuation runs are not repetition.
+  Non-streaming calls are served through the stream so they stop early too. `DegenerationOptions` sets the window,
+  unit length and repeat count; `DegenerationDetector.FindRepeatingUnit` is the rule on its own.
+
 ## [0.5.0] - 2026-09-24
 
 ### Changed
