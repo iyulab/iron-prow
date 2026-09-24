@@ -6,6 +6,9 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 
 ## [0.6.0] - unreleased
 
+### Changed
+- Re-pinned sibling package(s) `IronHive.Core` 0.36.0 -> 0.37.0, `IronHive.Providers.Anthropic` 0.36.0 -> 0.37.0, `IronHive.Providers.GoogleAI` 0.36.0 -> 0.37.0, `IronHive.Providers.OpenAI` 0.36.0 -> 0.37.0, `IronHive.Providers.OpenAI.Compatible` 0.36.0 -> 0.37.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+
 ### Added
 - **`WithDegenerationStop()` / `DegenerationStopChatClient` stops a generation stuck repeating itself** (opt-in, on any
   `IChatClient` including the gateway). When the output ends in four or more back-to-back copies of a short unit
