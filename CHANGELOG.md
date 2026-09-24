@@ -17,6 +17,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 - **A retry waits the provider's `Retry-After` / `retry-after-ms`** when it is longer than the backoff, up to the new
   `ResilienceOptions.MaxRetryAfter` (default 10 s); a longer hint is not waited — the gateway moves to the next
   provider.
+- Re-pinned sibling package(s) `IronHive.Core` 0.35.0 -> 0.36.0, `IronHive.Providers.Anthropic` 0.35.0 -> 0.36.0, `IronHive.Providers.GoogleAI` 0.35.0 -> 0.36.0, `IronHive.Providers.OpenAI` 0.35.0 -> 0.36.0, `IronHive.Providers.OpenAI.Compatible` 0.35.0 -> 0.36.0, `LMSupply.Generator` 0.74.0 -> 0.75.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
 
 ### Added
 - **`IHttpFailureReader` / `HttpFailure`** — how the gateway learns the status and retry hint an exception describes.
