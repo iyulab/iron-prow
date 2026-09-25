@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.6.2] - 2026-09-26
+
+### Changed
+- Re-pinned sibling package(s) `IronHive.Core` 0.38.0 -> 0.39.0, `IronHive.Providers.Anthropic` 0.38.0 -> 0.39.0, `IronHive.Providers.GoogleAI` 0.38.0 -> 0.39.0, `IronHive.Providers.OpenAI` 0.38.0 -> 0.39.0, `IronHive.Providers.OpenAI.Compatible` 0.38.0 -> 0.39.0, `LMSupply.Generator` 0.76.0 -> 0.77.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+
 ## [0.6.1] - 2026-09-25
 
 ### Changed
