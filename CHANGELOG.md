@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.7.2] - 2026-09-26
+
+### Added
+- **Usage from the local model reports prompt tokens served from the server's cache.** `GeneratorChatClient` sets `UsageDetails.CachedInputTokenCount`, on both the response and the streamed final update. The value comes from llama-server's timings, which LMSupply 0.80.0 exposes. Those tokens are still counted in `InputTokenCount`; they were not evaluated. The value is null when the backend reports no timings (the ONNX path).
+
+### Changed
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.79.1 -> 0.80.0.
+
 ## [0.7.1] - 2026-09-26
 
 ### Changed

@@ -140,6 +140,51 @@ public class GeneratorChatClientTests
         response.Usage.TotalTokenCount.Should().Be(492);
     }
 
+    // Prompt tokens the server reused from its prompt cache are counted in the input but were not evaluated;
+    // M.E.AI has a slot for them, and the server reports them in its timings (cache_n).
+    [Fact]
+    public async Task Cached_prompt_tokens_reach_CachedInputTokenCount_on_both_paths()
+    {
+        var usage = new global::LMSupply.Generator.Models.ChatTokenUsage { PromptTokens = 13, CompletionTokens = 40, TotalTokens = 53 };
+        var timings = new global::LMSupply.Generator.Models.GenerationTimings { CachedPromptTokens = 9, PromptTokensEvaluated = 4 };
+        var gen = new FakeTextGenerator
+        {
+            CompletionContent = "ok",
+            CompletionFinishReason = "stop",
+            CompletionUsage = usage,
+            CompletionTimings = timings,
+            StreamChunks = [new LmChatStreamChunk { Text = "ok" }, new LmChatStreamChunk { FinishReason = "stop", Usage = usage, Timings = timings }]
+        };
+        var sut = new GeneratorChatClient(gen);
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: ct);
+        var updates = new List<ChatResponseUpdate>();
+        await foreach (var u in sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")], cancellationToken: ct))
+        {
+            updates.Add(u);
+        }
+
+        response.Usage!.InputTokenCount.Should().Be(13);
+        response.Usage.CachedInputTokenCount.Should().Be(9);
+        updates.ToChatResponse().Usage!.CachedInputTokenCount.Should().Be(9);
+    }
+
+    [Fact]
+    public async Task Without_server_timings_the_cached_count_is_unknown_not_zero()
+    {
+        var gen = new FakeTextGenerator
+        {
+            CompletionContent = "ok",
+            CompletionUsage = new global::LMSupply.Generator.Models.ChatTokenUsage { PromptTokens = 13, CompletionTokens = 40, TotalTokens = 53 }
+        };
+        var sut = new GeneratorChatClient(gen);
+
+        var response = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
+
+        response.Usage!.CachedInputTokenCount.Should().BeNull();
+    }
+
     [Fact]
     public async Task Streaming_without_backend_usage_reports_no_usage()
     {
@@ -219,6 +264,8 @@ public class GeneratorChatClientTests
         public string? CompletionContent { get; set; }
         public IReadOnlyList<LmChatToolCall>? CompletionToolCalls { get; set; }
         public string? CompletionFinishReason { get; set; }
+        public global::LMSupply.Generator.Models.ChatTokenUsage? CompletionUsage { get; set; }
+        public global::LMSupply.Generator.Models.GenerationTimings? CompletionTimings { get; set; }
         public IReadOnlyList<LmChatStreamChunk> StreamChunks { get; set; } = [];
 
         public List<LmChatMessage> LastMessages { get; private set; } = [];
@@ -236,7 +283,9 @@ public class GeneratorChatClientTests
             {
                 Content = CompletionContent,
                 ToolCalls = CompletionToolCalls,
-                FinishReason = CompletionFinishReason
+                FinishReason = CompletionFinishReason,
+                Usage = CompletionUsage,
+                Timings = CompletionTimings
             });
         }
 
