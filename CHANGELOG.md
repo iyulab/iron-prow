@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.7.0] - Unreleased
+
+### Added
+- **A streamed response from the local model now reports token usage.** `GeneratorChatClient.GetStreamingResponseAsync` carries the backend's count (LMSupply 0.79.0 puts it on the final stream chunk, reasoning included) as a `UsageContent` on the finishing update, so `ToChatResponse()` yields the same `Usage` the non-streaming path gives. Backends that report none (the ONNX path) still report none.
+
+### Changed
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.78.0 -> 0.79.0 (streamed usage on the final chunk).
+
 ## [0.6.3] - 2026-09-26
 
 ### Changed

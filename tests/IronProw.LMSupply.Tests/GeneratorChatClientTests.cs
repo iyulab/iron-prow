@@ -106,6 +106,59 @@ public class GeneratorChatClientTests
         updates.Last().FinishReason.Should().Be(ChatFinishReason.ToolCalls);
     }
 
+    // The backend's usage rides on the final stream chunk; the streaming surface must hand it on as
+    // UsageContent so ToChatResponse() reports the same numbers the non-streaming path does.
+    [Fact]
+    public async Task Streaming_final_chunk_usage_reaches_the_response_as_usage_content()
+    {
+        var gen = new FakeTextGenerator
+        {
+            StreamChunks =
+            [
+                new LmChatStreamChunk { Text = "ok" },
+                new LmChatStreamChunk
+                {
+                    FinishReason = "stop",
+                    Usage = new global::LMSupply.Generator.Models.ChatTokenUsage { PromptTokens = 12, CompletionTokens = 480, TotalTokens = 492 }
+                }
+            ]
+        };
+        var sut = new GeneratorChatClient(gen);
+
+        var updates = new List<ChatResponseUpdate>();
+        await foreach (var u in sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken))
+        {
+            updates.Add(u);
+        }
+
+        var response = updates.ToChatResponse();
+        response.Text.Should().Be("ok");
+        response.FinishReason.Should().Be(ChatFinishReason.Stop);
+        response.Usage.Should().NotBeNull();
+        response.Usage!.InputTokenCount.Should().Be(12);
+        response.Usage.OutputTokenCount.Should().Be(480);
+        response.Usage.TotalTokenCount.Should().Be(492);
+    }
+
+    [Fact]
+    public async Task Streaming_without_backend_usage_reports_no_usage()
+    {
+        var gen = new FakeTextGenerator
+        {
+            StreamChunks = [new LmChatStreamChunk { Text = "ok" }, new LmChatStreamChunk { FinishReason = "stop" }]
+        };
+        var sut = new GeneratorChatClient(gen);
+
+        var updates = new List<ChatResponseUpdate>();
+        await foreach (var u in sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken))
+        {
+            updates.Add(u);
+        }
+
+        updates.ToChatResponse().Usage.Should().BeNull();
+        updates.Last().Contents.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Cancellation_token_is_propagated_to_generator()
     {

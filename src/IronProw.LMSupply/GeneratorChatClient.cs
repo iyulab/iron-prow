@@ -101,14 +101,7 @@ public sealed class GeneratorChatClient : IChatClient
         {
             FinishReason = MapFinishReason(result.FinishReason),
             ModelId = _generator.ModelId,
-            Usage = result.Usage is { } usage
-                ? new UsageDetails
-                {
-                    InputTokenCount = usage.PromptTokens,
-                    OutputTokenCount = usage.CompletionTokens,
-                    TotalTokenCount = usage.TotalTokens,
-                }
-                : null,
+            Usage = result.Usage is { } usage ? ToUsageDetails(usage) : null,
         };
     }
 
@@ -169,21 +162,26 @@ public sealed class GeneratorChatClient : IChatClient
             if (chunk.FinishReason is not null)
             {
                 var finishReason = MapFinishReason(chunk.FinishReason);
-                if (toolCallAccumulator is { Count: > 0 })
+                var contents = toolCallAccumulator is { Count: > 0 }
+                    ? BuildToolCallContents(toolCallAccumulator)
+                    : [];
+                toolCallAccumulator = null;
+
+                // The backend's own count rides on the final chunk (it includes reasoning the stream may not
+                // have shown). UsageContent is how M.E.AI streams usage: ToChatResponse() folds it into
+                // ChatResponse.Usage, so a streaming consumer reads the same numbers the non-streaming path gives.
+                if (chunk.Usage is { } usage)
                 {
-                    yield return new ChatResponseUpdate
-                    {
-                        Role = ChatRole.Assistant,
-                        ModelId = modelId,
-                        Contents = BuildToolCallContents(toolCallAccumulator),
-                        FinishReason = finishReason
-                    };
-                    toolCallAccumulator = null;
+                    contents.Add(new UsageContent(ToUsageDetails(usage)));
                 }
-                else
+
+                yield return new ChatResponseUpdate
                 {
-                    yield return new ChatResponseUpdate { ModelId = modelId, FinishReason = finishReason };
-                }
+                    Role = contents.Count > 0 ? ChatRole.Assistant : null,
+                    ModelId = modelId,
+                    Contents = contents,
+                    FinishReason = finishReason
+                };
             }
         }
 
@@ -471,6 +469,13 @@ public sealed class GeneratorChatClient : IChatClient
             return null;
         }
     }
+
+    private static UsageDetails ToUsageDetails(global::LMSupply.Generator.Models.ChatTokenUsage usage) => new()
+    {
+        InputTokenCount = usage.PromptTokens,
+        OutputTokenCount = usage.CompletionTokens,
+        TotalTokenCount = usage.TotalTokens,
+    };
 
     private static ChatFinishReason? MapFinishReason(string? reason) => reason switch
     {
