@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.8.0] - Unreleased
+
+### Changed
+- **`IronProw.IronHive` no longer depends on `IronHive.Core`.** Its provider adapters get `ChatClientAdapter` from the new
+  `IronHive.Extensions.AI` 0.42.0, which depends only on `IronHive.Abstractions`. A host that uses IronProw's IronHive
+  providers no longer ships Core's document, SQLite (native), MessagePack and template stack. **Breaking** only for a host
+  that used `IronHive.Core` types without referencing that package itself: add the reference.
+
+### Dependencies
+- IronHive providers 0.41.0 -> 0.42.0.
+
 ## [0.7.3] - 2026-09-27
 
 ### Changed

@@ -1,4 +1,4 @@
-using IronHive.Core.Microsoft;
+using IronHive.Extensions.AI;
 using IronHive.Providers.Anthropic;
 using IronHive.Providers.GoogleAI;
 using IronHive.Providers.OpenAI;
