@@ -258,6 +258,31 @@ public class GeneratorChatClientTests
     public void FlattenToolResult_renders_a_poco_as_json_not_its_type_name()
         => GeneratorChatClient.FlattenToolResult(new { temperature = 22 }).Should().Be("{\"temperature\":22}");
 
+    [Fact]
+    public async Task Declaration_only_tools_reach_the_model_next_to_functions()
+    {
+        // A host-executed tool is declared without an implementation. It must be offered to the model like any
+        // other tool; FunctionInvokingChatClient then hands its call back to the caller instead of invoking it.
+        using var schema = System.Text.Json.JsonDocument.Parse(
+            """{"type":"object","properties":{"tab":{"type":"string"}},"required":["tab"]}""");
+        var declaration = AIFunctionFactory.CreateDeclaration("read_page", "Reads one open tab's text.", schema.RootElement.Clone());
+        var function = AIFunctionFactory.Create((string tab) => "tabs", "list_tabs", "Lists open tabs.");
+        var options = new ChatOptions { Tools = [declaration, function] };
+
+        var gen = new FakeTextGenerator { CompletionContent = "ok" };
+        var sut = new GeneratorChatClient(gen);
+        await sut.GetResponseAsync([new(ChatRole.User, "hi")], options, TestContext.Current.CancellationToken);
+
+        gen.LastOptions!.Tools!.Select(t => t.Name).Should().Equal("read_page", "list_tabs");
+        var offered = gen.LastOptions.Tools![0];
+        offered.Description.Should().Be("Reads one open tab's text.");
+        offered.Parameters!.Value.GetProperty("required")[0].GetString().Should().Be("tab");
+
+        await foreach (var _ in sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")], options, TestContext.Current.CancellationToken))
+        { }
+        gen.LastOptions!.Tools!.Select(t => t.Name).Should().Equal("read_page", "list_tabs");
+    }
+
     private sealed class FakeTextGenerator : ITextGenerator
     {
         public string ModelId => "fake-model";

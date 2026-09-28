@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.8.7] - Unreleased
+
+### Fixed
+
+- **`GeneratorChatClient` offers declaration-only tools to the model.** A tool in `ChatOptions.Tools` created with
+  `AIFunctionFactory.CreateDeclaration` (the caller runs it, the model may call it) was dropped from the tool list sent to
+  the local model, which then answered as if no tool existed. Every `AIFunctionDeclaration` is now sent with its name,
+  description and parameter schema; invoking tools stays the caller's job.
+
 ## [0.8.6] - 2026-09-28
 
 ### Changed
