@@ -18,6 +18,8 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ### Changed
 - README: the "lightweight path" (`BuildLocalSafeClient`) is described as what it is — readiness, preflight and length
   bounds, no input/output guard.
+- README: `GetService<ChatClientMetadata>()` returns the LMSupply metadata on the `BuildLocalSafeClient` client only; the
+  gateway selects a provider per call and returns `null` (read `ChatResponse.ModelId`).
 
 ## [0.8.14] - 2026-09-29
 

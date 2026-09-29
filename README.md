@@ -110,7 +110,7 @@ IChatClient chat = host.Services.GetRequiredService<IChatClient>();
 - **length-bounding** — `LocalSafetyOptions.DefaultMaxOutputTokens` (미설정 호출에 자동 적용, 기본 512)
 - **reasoning default** — `LocalSafetyOptions.DefaultReasoningEffort` (미설정 호출에 자동 적용, 기본 `ReasoningEffort.None`). thinking 기본-on 모델(Gemma 4·Qwen3)은 작은 예산을 reasoning 에 전부 써 **빈 답 + `FinishReason.Length`** 를 돌려줄 수 있다 — 안전 래퍼의 계약은 «예산은 답에 쓴다»라 기본은 off. 모델 기본을 유지하려면 `null`.
 - **reasoning 운반** — 브리지가 표준 `ChatOptions.Reasoning` 을 lm-supply `ThinkingMode` 로 번역한다(`Effort.None`→Off, 그 외→On, null→모델 기본). 모델이 낸 reasoning 은 `TextReasoningContent` 로 응답에 실린다(`ReasoningOutput.None` 이면 버림) — 빈 답이 왜 비었는지 소비자가 볼 수 있다.
-- **계측** — `ChatResponse.ModelId`·`Usage`(llama-server 의 prompt/completion 토큰; ONNX 는 null)·`GetService<ChatClientMetadata>()`(`ProviderName = "LMSupply"`).
+- **계측** — `ChatResponse.ModelId`·`Usage`(llama-server 의 prompt/completion 토큰; ONNX 는 null)·`GetService<ChatClientMetadata>()`(`ProviderName = "LMSupply"` — 경량 경로 `BuildLocalSafeClient` 가 돌려준 client 에서. 게이트웨이는 호출마다 provider 를 고르므로 provider 메타데이터를 내지 않는다(`null`); 어느 모델이 답했는지는 응답의 `ModelId` 로 본다).
 
 #### 경량 경로 — 단일 local provider (게이트웨이 없이)
 
