@@ -165,6 +165,16 @@ public class PerTenantResolutionTests
     }
 
     [Fact]
+    public void A_second_AddTenantResolver_is_refused()
+    {
+        var services = new ServiceCollection();
+        var builder = services.AddIronProw().AddTenantResolver((_, _) => []);
+
+        builder.Invoking(b => b.AddTenantResolver((_, _) => []))
+            .Should().Throw<InvalidOperationException>().WithMessage("*once per gateway*");
+    }
+
+    [Fact]
     public void IIronProwFactory_is_not_registered_without_AddTenantResolver()
     {
         var services = new ServiceCollection();

@@ -28,7 +28,7 @@ dotnet add package IronProw.LMSupply   # local-provider safety adapter
 ### A. Frontier / LAN 게이트웨이
 
 IronHive 기반 frontier provider + FluxGuard guardrail을 등록한다.  
-DI 컨테이너가 표준 `IChatClient`를 resolve하며, 게이트웨이가 selection·retry·입출력 검사를 자동 처리한다.
+DI 컨테이너가 표준 `IChatClient`를 resolve하며, 게이트웨이가 selection·retry·입출력 검사를 처리한다(스트리밍 출력 검사의 시점은 아래 «What the guard inspects» 참조).
 
 ```csharp
 using IronProw.Core;
@@ -37,6 +37,7 @@ using IronProw.FluxGuard;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
+var services = new ServiceCollection();   // Generic Host 라면 builder.Services
 services.AddIronProw()
         .AddIronHiveOpenAI(
             id: "openai",
@@ -51,8 +52,17 @@ services.AddIronProw()
         .UseFluxGuard();  // Standard preset (L1 regex guards, offline)
 
 // 표준 Microsoft.Extensions.AI.IChatClient 반환
-IChatClient chat = host.Services.GetRequiredService<IChatClient>();
-var response = await chat.GetResponseAsync("Hello");
+await using var provider = services.BuildServiceProvider();
+IChatClient chat = provider.GetRequiredService<IChatClient>();
+try
+{
+    var response = await chat.GetResponseAsync("Hello");
+    Console.WriteLine(response.Text);
+}
+catch (GuardException ex)   // 가드가 입력이나 출력을 막았다
+{
+    Console.WriteLine($"blocked: {ex.Reason}");
+}
 ```
 
 `IronProw.IronHive`는 다섯 가지 provider 어댑터를 제공한다:
@@ -70,7 +80,7 @@ services.AddIronProw()
 ```
 
 `UseFluxGuard()` (파라미터 없음) 는 Standard preset(L1 regex, offline)을 적용한다.  
-커스텀 FluxGuard 인스턴스를 주입하려면 `UseFluxGuard(IFluxGuard)` 오버로드를 사용한다.  
+`UseFluxGuard(configure: b => …)` 는 Standard preset 위에 FluxGuard 빌더 설정을 더한다(예: `b.WithBlockThreshold(0.8)`). 이미 만든 FluxGuard 인스턴스를 주입하려면 `UseFluxGuard(IFluxGuard)` 오버로드를 사용한다. 다른 가드는 `UseGuard(sp => myGuard)` 로 `IGuard` 를 직접 꽂는다.  
 **fail mode**: 기본은 fail-closed(불확실 verdict 차단). 가용성을 우선하는 소비자는 `UseFluxGuard(failMode: FluxGuardFailMode.Open)`으로 opt-in — Flagged/NeedsEscalation을 통과시킨다(정의된 Block은 mode 무관 항상 차단).
 
 ### B. Local-provider safety (lm-supply / ONNX / DirectML)
@@ -85,12 +95,14 @@ using LMSupply.Generator;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
-// generator: lm-supply가 로드한 IGeneratorModel/ITextGenerator (생명주기는 호출자 소유).
-//            예: var generator = await LocalGenerator.LoadAsync("gguf:default", options, null, ct);
-// probe:     IReadinessProbe — 모델 로드 상태를 보고하는 구현체.
-//            lm-supply GeneratorPool 기반은 GeneratorPoolProbe를 사용한다.
-//            GeneratorPool 없이 LoadAsync로 단일 모델을 직접 로드하는 경우
-//            (예: textree)는 LazyReadinessProbe(() => loaded, [modelId])를 사용한다.
+// generator: lm-supply 가 로드한 IGeneratorModel/ITextGenerator — 생명주기는 호출자 소유.
+await using var generator = await LocalGenerator.LoadAsync("auto");
+
+// probe: IReadinessProbe — 모델이 요청을 받을 수 있는지와 어떤 모델 id 가 있는지 보고한다.
+//        LoadAsync 로 단일 모델을 직접 로드했다면 LazyReadinessProbe, GeneratorPool 을 쓰면 GeneratorPoolProbe.
+var probe = new LazyReadinessProbe(() => true, [generator.GetModelInfo().ModelId]);
+
+var services = new ServiceCollection();
 services.AddIronProw()
         .AddLMSupplyLocal(
             id: "local-phi3",
@@ -100,13 +112,14 @@ services.AddIronProw()
             options: new LocalSafetyOptions { DefaultMaxOutputTokens = 1024 })
         .UseFluxGuard();
 
-IChatClient chat = host.Services.GetRequiredService<IChatClient>();
+await using var provider = services.BuildServiceProvider();
+IChatClient chat = provider.GetRequiredService<IChatClient>();
 ```
 
-`AddLMSupplyLocal`이 제공하는 safety:
+`AddLMSupplyLocal`이 제공하는 safety(호출마다 이 순서로 적용):
 - **bridge** — `GeneratorChatClient`가 lm-supply 생성자를 `IChatClient`로 적응(role 매핑, `MaxOutputTokens`→`MaxNewTokens`, sampler/tool 전파, streaming flatten). 이미 브리지된 `IChatClient`를 보유한 호출자(예: ironhive-host)는 `AddLMSupplyLocal(..., IChatClient rawClient, ...)` 오버로드를 쓸 수 있다.
-- **model-ID preflight** — `IReadinessProbe.GetAvailableModelIdsAsync`로 모델 존재 검증
-- **readiness gate** — `IReadinessProbe.IsReadyAsync`로 로드 완료 확인
+- **readiness gate** — `IReadinessProbe.IsReadyAsync` 가 false 면 `InvalidOperationException`. 게이트웨이는 이것을 그 provider 의 실패로 보고 다음 provider 로 넘어간다.
+- **model-ID preflight** — `ChatOptions.ModelId` 가 **지정된 호출만** `IReadinessProbe.GetAvailableModelIdsAsync` 에 그 id 가 있는지 검증한다(없으면 `InvalidOperationException`). ⚠ 게이트웨이는 같은 `ChatOptions` 를 모든 provider 에 넘기므로, frontier 모델 id 를 지정한 호출이 local provider 로 fallback 되면 preflight 에서 실패하고 그 provider 의 건강 기록에도 실패로 남는다 — 혼합 게이트웨이에서는 `ModelId` 를 비워 두고 provider 별 기본 모델을 쓴다.
 - **length-bounding** — `LocalSafetyOptions.DefaultMaxOutputTokens` (미설정 호출에 자동 적용, 기본 512)
 - **reasoning default** — `LocalSafetyOptions.DefaultReasoningEffort` (미설정 호출에 자동 적용, 기본 `ReasoningEffort.None`). thinking 기본-on 모델(Gemma 4·Qwen3)은 작은 예산을 reasoning 에 전부 써 **빈 답 + `FinishReason.Length`** 를 돌려줄 수 있다 — 안전 래퍼의 계약은 «예산은 답에 쓴다»라 기본은 off. 모델 기본을 유지하려면 `null`.
 - **reasoning 운반** — 브리지가 표준 `ChatOptions.Reasoning` 을 lm-supply `ThinkingMode` 로 번역한다(`Effort.None`→Off, 그 외→On, null→모델 기본). 모델이 낸 reasoning 은 `TextReasoningContent` 로 응답에 실린다(`ReasoningOutput.None` 이면 버림) — 빈 답이 왜 비었는지 소비자가 볼 수 있다.
@@ -118,7 +131,11 @@ IChatClient chat = host.Services.GetRequiredService<IChatClient>();
 
 ```csharp
 using IronProw.LMSupply;
+using LMSupply.Generator;
 using Microsoft.Extensions.AI;
+
+await using var generator = await LocalGenerator.LoadAsync("auto");
+var probe = new LazyReadinessProbe(() => true, [generator.GetModelInfo().ModelId]);
 
 // 게이트웨이(AddIronProw/빌더/레지스트리) 없이 안전 래핑된 local client 직접 조립 — readiness·preflight·length-bound 만,
 // 입출력 가드(FluxGuard)는 적용되지 않는다(가드가 필요하면 게이트웨이 경로를 쓴다).
@@ -128,7 +145,7 @@ IChatClient chat = LMSupplyExtensions.BuildLocalSafeClient(
     new LocalSafetyOptions { DefaultMaxOutputTokens = 1024 }); // 선택 (기본 512)
 ```
 
-동일한 safety(preflight·readiness gate·length-bounding)를 받되 selection/fallback/resilience 오버헤드가 없다. 다중 provider·우선순위 선택·provider-level fallback이 필요해지면 `AddLMSupplyLocal`로 전환한다.
+동일한 safety(readiness gate·preflight·length-bounding)를 받되 selection/fallback/resilience 오버헤드가 없다. 다중 provider·우선순위 선택·provider-level fallback이 필요해지면 `AddLMSupplyLocal`로 전환한다.
 
 ### 두 갈래 조합
 
@@ -165,6 +182,47 @@ services.AddIronProw()
 
 retry 를 다 쓴 실패도 다음 provider 로 넘어간다. 상태에 도메인 의미를 주는 provider(예: 다운로드 승인 전까지 409 를 내는 로컬 provider)는 소비자가 `IErrorClassifier` 를 데코레이트해 그 코드만 다르게 분류한다. 다른 예외 타입이 HTTP 실패를 나르면 `IHttpFailureReader` 를 `TryAddEnumerable` 로 등록한다.
 
+```csharp
+using IronProw.Core;
+using Microsoft.Extensions.DependencyInjection;
+
+// AddIronProw() 뒤에 등록하면 기본 분류기를 대신한다 — 409 만 다르게, 나머지는 기본 규칙에 맡긴다.
+services.AddSingleton<IErrorClassifier>(sp =>
+    new DownloadPendingClassifier(new DefaultErrorClassifier(sp.GetServices<IHttpFailureReader>())));
+
+sealed class DownloadPendingClassifier(IErrorClassifier inner) : IErrorClassifier
+{
+    public ErrorClassification Classify(Exception exception)
+        => exception is HttpRequestException { StatusCode: System.Net.HttpStatusCode.Conflict }
+            ? ErrorClassification.FallbackEligible
+            : inner.Classify(exception);
+}
+```
+
+### Provider 선택 — `ProviderKind` 와 `IProviderSelector`
+
+기본 선택기(`DefaultProviderSelector`)는 **`priority` 만** 본다 — 높은 순서로 시도한다. 각 등록의 `ProviderKind`(`Frontier`·`Lan`·`Local`, 어댑터가 채운다)는 기본 선택기가 읽지 않는 **메타데이터**이고, 요청에 따라 순서를 바꾸고 싶은 소비자가 자기 `IProviderSelector` 에서 쓴다. `AddIronProw()` 뒤에 등록하면 기본 선택기를 대신한다. 선택기가 돌려준 순서에 건강 기억(cooldown 중인 provider 를 뒤로)이 적용된다.
+
+```csharp
+using IronProw.Core;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+
+services.AddSingleton<IProviderSelector, ShortRequestsStayLocal>();
+
+// 짧은 요청은 로컬 먼저, 나머지는 priority 순서.
+sealed class ShortRequestsStayLocal : IProviderSelector
+{
+    public IReadOnlyList<ProviderRegistration> Order(ChatSelectionContext context)
+    {
+        var chars = context.Messages.Sum(m => m.Text.Length);
+        return chars < 2_000
+            ? [.. context.Candidates.OrderByDescending(c => c.Kind == ProviderKind.Local)]   // 안정 정렬 — 같은 Kind 안에선 priority 순서 유지
+            : context.Candidates;
+    }
+}
+```
+
 `OnTransition`(선택)은 각 게이트웨이 전환(retry / fallback / exhausted / skipped)마다 호출되는 best-effort 콜백이다. 소비자가 어느 provider로 강등됐는지 UI에 표시(예: resilience 칩)할 수 있다. 콜백이 던지는 예외는 삼켜지며 추론을 절대 깨지 않는다. 미설정 시 동작은 기존과 동일(무보고).
 
 **스트리밍 동등성**: retry·fallback은 `GetResponseAsync`와 `GetStreamingResponseAsync` 양쪽에 동일하게 적용된다. 스트리밍의 복원력 창은 **"첫 `ChatResponseUpdate`가 yield되기 전"** 이다 — 첫 청크 이전에 발생한 실패(예: OpenAI 호환 호출이 첫 `MoveNextAsync`에서 던지는 connection-refused / 404 / model-not-found)는 same-provider retry(Retryable) 또는 next-provider fallback(FallbackEligible)으로 처리된다. 첫 청크가 emit된 뒤의 실패는 provider를 바꾸면 이중 emit이 되므로 그대로 전파된다.
@@ -174,7 +232,11 @@ retry 를 다 쓴 실패도 다음 provider 로 넘어간다. 상태에 도메�
 기본 `AddProvider`/`AddLMSupplyLocal` 경로는 **provider 집합이 프로세스 수명 동안 고정**인 소비자(데스크탑 에이전트, 단일 유저)를 위한 것이다. 워크스페이스마다 provider 집합·config·secret이 다른 **멀티테넌트 서버 소비자**는 `AddTenantResolver`로 per-tenant 게이트웨이를 런타임에 build한다.
 
 ```csharp
-// startup — 단일 테넌트 AddProvider 경로와 병존(무회귀)
+using IronProw.Core;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+
+// startup — 단일 테넌트 AddProvider 경로와 병존(무회귀). 게이트웨이당 한 번만 호출한다(두 번째는 InvalidOperationException).
 services.AddIronProw()
         .UseFluxGuard()
         .AddTenantResolver((sp, tenant) =>                           // 신규 표면
@@ -182,8 +244,14 @@ services.AddIronProw()
               .ResolveRegistrations(tenant));                       // per-workspace 집합 → ProviderRegistration[]
 
 // per-request (요청 스코프에서 resolve)
-var client = scopedSp.GetRequiredService<IIronProwFactory>().ForTenant(workspaceId);
-await client.GetResponseAsync(msgs, options, ct);                    // guarded: select/retry/fallback/guard
+IChatClient client = scopedSp.GetRequiredService<IIronProwFactory>().ForTenant(workspaceId);
+await client.GetResponseAsync(messages, options, ct);                // guarded: select/retry/fallback/guard
+
+// consumer 구현 — 워크스페이스의 provider 집합(요청 미들웨어가 미리 복호화해 둔 secret 을 sync 로 읽는다)
+sealed class ProviderService
+{
+    public IReadOnlyList<ProviderRegistration> ResolveRegistrations(string workspaceId) => [];
+}
 ```
 
 - `ForTenant(tenant)`은 해당 테넌트의 provider 집합으로 `SelectingChatClient`를 재조립한다 — selector/guard/classifier/options는 공유(재사용), **registry만 per-tenant**. tenant 키는 iron-prow에 opaque(resolver가 해석).
@@ -197,9 +265,19 @@ await client.GetResponseAsync(msgs, options, ct);                    // guarded:
 작은 로컬 모델은 같은 단어·구절을 토큰 상한까지 반복하는 퇴화에 빠지곤 한다("concisely concisely concisely …"). `WithDegenerationStop()`은 어떤 `IChatClient`든(게이트웨이 포함) 감싸서, 출력 끝이 짧은 단위(≤ 60자, 글자 포함)의 4회 이상 연속 반복이 되면 생성을 멈춘다. 검사 대상은 출력의 마지막 240자다. Markdown 구조와 구두점 연속(`----`, `| --- |`, `====`, `....`)은 반복으로 보지 않는다. 판정은 좋은 답을 끊지 않는 쪽으로 치우쳐 있다.
 
 ```csharp
+using IronProw.Core;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+
 IChatClient chat = sp.GetRequiredService<IChatClient>().WithDegenerationStop(o => o.MinRepeats = 4);
-// ChatClientBuilder 에서는: builder.Use(inner => new DegenerationStopChatClient(inner))
+
+// ChatClientBuilder 파이프라인에서는(ChatClientBuilder 는 Microsoft.Extensions.AI 패키지에 있다 — IronProw.Core 는 .Abstractions 만 참조):
+IChatClient piped = new ChatClientBuilder(inner)
+    .Use(c => new DegenerationStopChatClient(c, new DegenerationOptions { MinRepeats = 4 }))
+    .Build();
 ```
+
+`DegenerationOptions` — `Window`(검사할 출력 끝 길이, 기본 240자) · `MaxPeriod`(반복 단위 최대 길이, 기본 60자) · `MinRepeats`(연속 반복 횟수, 기본 4).
 
 멈춤은 조용한 끝이 아니라 **신호**다. 스트리밍의 마지막 업데이트와 비스트리밍 응답의 `FinishReason`이 `DegenerationStopChatClient.FinishReason`("degeneration")이 되고, 반복된 단위는 `AdditionalProperties[DegenerationStopChatClient.RepeatedUnitKey]`에 실린다. 이미 내보낸 텍스트는 그대로 두고, 안쪽 스트림을 버려 생성을 취소한다. 비스트리밍 호출도 안쪽 스트림으로 받아 조기에 멈춘다. 판정만 필요하면 `DegenerationDetector.FindRepeatingUnit(text)`를 쓴다.
 

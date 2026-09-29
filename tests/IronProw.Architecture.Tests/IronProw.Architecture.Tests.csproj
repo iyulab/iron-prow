@@ -13,6 +13,10 @@
     <PackageReference Include="Microsoft.Testing.Extensions.HangDump" />
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="Iyu.Conventions.Testing" />
+    <!-- README snippet compile teeth: Roslyn, and ChatClientBuilder (the README shows builder.Use). -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/IronProw.Core/IronProw.Core.csproj" />

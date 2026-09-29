@@ -50,7 +50,14 @@ public sealed class IronProwBuilder
         Func<IServiceProvider, string, IReadOnlyList<ProviderRegistration>> resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
-        _services.TryAddScoped<IIronProwFactory>(sp => new IronProwFactory(
+
+        // One resolver per gateway: a second one would be ignored (the first registration wins), so a consumer that
+        // registers two would silently route every tenant through the first.
+        if (_services.Any(d => d.ServiceType == typeof(IIronProwFactory)))
+            throw new InvalidOperationException(
+                "A tenant resolver is already registered; AddTenantResolver can be called once per gateway.");
+
+        _services.AddScoped<IIronProwFactory>(sp => new IronProwFactory(
             sp,
             resolver,
             sp.GetRequiredService<IProviderSelector>(),
@@ -63,4 +70,4 @@ public sealed class IronProwBuilder
 }
 
 /// <summary>DI marker carrying a provider registration (collected at registry build time).</summary>
-public sealed record ProviderRegistrationMarker(ProviderRegistration Registration);
+internal sealed record ProviderRegistrationMarker(ProviderRegistration Registration);

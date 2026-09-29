@@ -57,7 +57,7 @@ low 층이므로 **core + adapter** 구조. core는 표준 추상화 + BCL만, i
 - **provider 선택**: LAN(GpuStack) ∨ frontier 중 정책 기반 선택.
 - **FluxGuard 보안 내장**: 입출력 guardrail을 관문에서 일괄 적용 (소비자가 잊을 수 없게).
 - **resilience**: retry · fallback(provider 강등) · error-classify(재시도 가능/불가 분류).
-- **provider registry + priority + env normalize + key boundary** (M2-3): 환경변수 정규화(`GPUSTACK_*`·`OPENAI_*`…), 우선순위, API 키 경계 격리.
+- **provider registry + priority + key boundary** (M2-3): 우선순위, API 키 경계 격리 — 키는 어댑터의 `configure` 로 넘기고 iron-prow 는 기록하지 않는다. 환경변수 이름 정규화는 제공하지 않는다(0.10.0 에서 어디에도 배선되지 않은 `EnvNormalizer` 제거 — 어떤 변수를 읽을지는 소비자가 정한다).
 
 ### B. local-provider safety (M2-4)
 - **exec-provider 핀**: 로컬 추론 실행 프로바이더 고정.

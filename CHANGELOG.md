@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.10.0] - Unreleased
+
+### Removed
+- **Breaking**: `EnvNormalizer`. Nothing in the gateway or its adapters called it, and no environment variable was ever
+  read through it; keys reach a provider through the adapter's `configure`. Read your variables where you register.
+- **Breaking**: `ProviderRegistrationMarker` is internal. It was DI plumbing for `AddProvider`; register providers
+  through `AddProvider` or an adapter.
+
+### Changed
+- **Breaking**: a second `AddTenantResolver` call throws `InvalidOperationException`. It was silently ignored, so every
+  tenant went through the first resolver.
+
+### Documentation
+- The README's C# blocks are complete programs and are compiled against the current API by a test.
+- New: what `GuardException` carries, `UseFluxGuard(configure:)` and `UseGuard`, decorating `IErrorClassifier`,
+  `ProviderKind` as metadata for a custom `IProviderSelector` (the default selector orders by priority only),
+  `DegenerationOptions`, and that `ChatClientBuilder` needs the `Microsoft.Extensions.AI` package.
+- The local safety steps are listed in the order they run (readiness, then model-ID preflight), and preflight is
+  documented as running only when `ChatOptions.ModelId` is set.
+
 ## [0.9.0] - 2026-09-29
 
 ### Fixed
