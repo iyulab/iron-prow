@@ -134,8 +134,10 @@ public class ReadmeSnippetCompileTests
     private static string Program(string code)
     {
         var lines = code.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        // "using X;   // what it is for" is a directive too.
+        static string Code(string l) => l.Split("//", 2)[0].TrimEnd();
         bool IsUsingDirective(string l) =>
-            l.StartsWith("using ", StringComparison.Ordinal) && l.TrimEnd().EndsWith(';') && !l.StartsWith("using var ", StringComparison.Ordinal);
+            l.StartsWith("using ", StringComparison.Ordinal) && Code(l).EndsWith(';') && !l.StartsWith("using var ", StringComparison.Ordinal);
 
         var body = string.Join("\n", lines.Where(l => !IsUsingDirective(l)));
         var standIns = StandIns
