@@ -15,6 +15,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ### Changed
 - **Breaking**: a second `AddTenantResolver` call throws `InvalidOperationException`. It was silently ignored, so every
   tenant went through the first resolver.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.92.1 -> 0.93.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`.
 
 ### Documentation
 - The README's C# blocks are complete programs and are compiled against the current API by a test.
