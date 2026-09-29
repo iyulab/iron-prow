@@ -41,11 +41,9 @@ public static class FluxGuardExtensions
         FluxGuardFailMode failMode = FluxGuardFailMode.Closed)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        var guard = global::FluxGuard.FluxGuard.Create(b =>
-        {
-            b.ApplyStandardPreset();
-            configure?.Invoke(b);
-        });
+        var fluxGuardBuilder = global::FluxGuard.FluxGuardBuilder.Create().ApplyStandardPreset();
+        configure?.Invoke(fluxGuardBuilder);
+        var guard = fluxGuardBuilder.Build();
         return builder.UseGuard(_ => new FluxGuardGuard(guard, failMode));
     }
 }

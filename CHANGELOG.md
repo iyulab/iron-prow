@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.10.3] - Unreleased
+
+### Changed
+- `UseFluxGuard` builds its guard through `FluxGuardBuilder` rather than FluxGuard's static factory, which FluxGuard
+  0.18.0 removes. Behaviour is unchanged: the standard preset, then your `configure` action.
+
 ## [0.10.2] - 2026-09-30
 
 ### Changed

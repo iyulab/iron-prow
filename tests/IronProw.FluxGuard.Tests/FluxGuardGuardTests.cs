@@ -185,7 +185,7 @@ internal static class FluxGuardGuardTestFactory
     public static IGuard WithInputFlagged(string label = "prompt injection")
     {
         _ = label; // documentation hint — the real L1 engine determines the actual reason
-        return new FluxGuardGuard(global::FluxGuard.FluxGuard.Create(b => b.ApplyStandardPreset()));
+        return new FluxGuardGuard(global::FluxGuard.FluxGuardBuilder.Create().ApplyStandardPreset().Build());
     }
 
     /// <summary>
@@ -193,5 +193,5 @@ internal static class FluxGuardGuardTestFactory
     /// A clean input passes through.
     /// </summary>
     public static IGuard WithCleanInput()
-        => new FluxGuardGuard(global::FluxGuard.FluxGuard.Create(b => b.ApplyStandardPreset()));
+        => new FluxGuardGuard(global::FluxGuard.FluxGuardBuilder.Create().ApplyStandardPreset().Build());
 }
