@@ -55,7 +55,7 @@ host처럼 `UseChatClient(IChatClient)` 주입 seam을 노출하는 소비자는
 |---|---|---|---|
 | provider 선택·우선순위 | provider 팩토리 / DI | `AddIronHive*` + `priority` | seam 교체로 흡수 |
 | retry / fallback | resilience decorator (`Func<IChatClient,IChatClient>`) | `Configure(opt => opt.Resilience...)` + `EnableFallback` | seam 교체로 흡수 |
-| guardrail (입출력 검사) | **decorator 밖** 별도 미들웨어일 수 있음 | `UseFluxGuard()` (관문 일괄) | **relocate** — 자체 guard 제거 후 `UseFluxGuard`로 이관 |
+| guardrail (입출력 검사) | **decorator 밖** 별도 미들웨어일 수 있음 | `UseFluxGuard()` (관문 일괄 — 스트리밍은 출력 전체를 스트림 끝에 검사, 0.9.0+) | **relocate** — 자체 guard 제거 후 `UseFluxGuard`로 이관 |
 | length-bound (context-overflow 차단) | **호출부 전처리**일 수 있음 | local: `LocalSafetyOptions.DefaultMaxOutputTokens` | **relocate** — local provider면 안전 옵션으로 이관 |
 | 전환 이벤트(UI 칩 등) | 자체 콜백 | `Configure(opt => opt.OnTransition = ...)` | 재배선 |
 

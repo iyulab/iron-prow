@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.9.0] - Unreleased
+
+### Fixed
+- **Streamed output goes through the output guard.** `GetStreamingResponseAsync` inspected only the input; the output of a
+  stream was never inspected. The aggregated output is now inspected when the stream ends, and a blocked output ends the
+  stream with `GuardException`. **Breaking** (behavior): chunks are yielded as they are generated, so a streaming consumer
+  may receive text before the exception — discard or retract it when the exception arrives.
+- **`WithDegenerationStop()` around the gateway no longer turns the output guard off.** It serves `GetResponseAsync`
+  through the inner stream and abandons that stream when it stops a repetition, so no call wrapped by it — streaming or
+  not — was output-guarded. The output is now inspected when the stream ends or when its consumer stops reading early.
+
+### Changed
+- README: the "lightweight path" (`BuildLocalSafeClient`) is described as what it is — readiness, preflight and length
+  bounds, no input/output guard.
+
 ## [0.8.14] - 2026-09-29
 
 ### Changed

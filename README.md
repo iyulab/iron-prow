@@ -120,7 +120,8 @@ IChatClient chat = host.Services.GetRequiredService<IChatClient>();
 using IronProw.LMSupply;
 using Microsoft.Extensions.AI;
 
-// 게이트웨이(AddIronProw/빌더/레지스트리) 없이 guarded local client 직접 조립.
+// 게이트웨이(AddIronProw/빌더/레지스트리) 없이 안전 래핑된 local client 직접 조립 — readiness·preflight·length-bound 만,
+// 입출력 가드(FluxGuard)는 적용되지 않는다(가드가 필요하면 게이트웨이 경로를 쓴다).
 IChatClient chat = LMSupplyExtensions.BuildLocalSafeClient(
     generator,                                                 // lm-supply ITextGenerator (호출자 소유)
     probe,                                                     // IReadinessProbe
@@ -224,6 +225,11 @@ iron-prow는 두 시나리오를 독립적이면서도 조합 가능하게 커�
 `UseFluxGuard()`는 두 갈래 공통 — 관문에서 일괄 적용된다.
 
 > ⚠️ The guard is opt-in. `AddIronProw()` installs a default `NullGuard` that allows all traffic. A gateway without `UseFluxGuard()` (or a custom `UseGuard(...)`) performs NO input/output guardrail checks. Always register a guard in production.
+
+**What the guard inspects, and when.** A blocked input or output throws `GuardException` (`Reason` says why).
+- `GetResponseAsync` — the input before the call, the response after it; a blocked response is never returned.
+- `GetStreamingResponseAsync` — the input before the call, the aggregated output when the stream ends. Chunks arrive as they are generated, so a blocked output ends the stream with `GuardException` *after* its chunks were yielded: a streaming consumer discards or retracts what it showed when the exception arrives. (0.9.0+; before, streamed output was never inspected.)
+- A consumer that stops reading early — `WithDegenerationStop()` around the gateway, which also serves `GetResponseAsync` through the stream — still gets the output inspected, on disposal. (0.9.0+; before, `WithDegenerationStop()` around the gateway turned the output guard off for every call.)
 
 ## See also
 
