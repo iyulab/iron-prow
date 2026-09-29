@@ -20,6 +20,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
   bounds, no input/output guard.
 - README: `GetService<ChatClientMetadata>()` returns the LMSupply metadata on the `BuildLocalSafeClient` client only; the
   gateway selects a provider per call and returns `null` (read `ChatResponse.ModelId`).
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.92.0 -> 0.92.1 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`.
 
 ## [0.8.14] - 2026-09-29
 
