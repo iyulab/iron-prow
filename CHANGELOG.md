@@ -9,6 +9,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ### Changed
 - **Documentation comments describe behaviour only.** Comments no longer refer to internal tracking or planning records.
 - **The repository no longer carries a `CHARTER.md` planning document.** The README states the scope instead: one safe call (provider selection, guardrail, resilience, length-bounding); agent loops, sessions, MCP and human-in-the-loop belong to the host.
+- Re-pinned sibling package(s) `FluxGuard` 0.18.0 -> 0.18.1, `IronHive.Extensions.AI` 0.45.2 -> 0.45.3, `IronHive.Providers.Anthropic` 0.45.2 -> 0.45.3, `IronHive.Providers.GoogleAI` 0.45.2 -> 0.45.3, `IronHive.Providers.OpenAI` 0.45.2 -> 0.45.3, `IronHive.Providers.OpenAI.Compatible` 0.45.2 -> 0.45.3, `LMSupply.Generator` 0.94.0 -> 0.95.0.
 
 ## [0.10.3] - 2026-09-30
 
