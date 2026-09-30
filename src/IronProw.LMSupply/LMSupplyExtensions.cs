@@ -13,7 +13,7 @@ public static class LMSupplyExtensions
     /// Registers a <see cref="ProviderKind.Local"/> candidate backed by a raw lm-supply
     /// <see cref="ITextGenerator"/>. The generator is bridged to <see cref="IChatClient"/> via
     /// <see cref="GeneratorChatClient"/> and wrapped in a <see cref="LocalSafetyChatClient"/>, so
-    /// consumers (e.g. textree) need only supply the loaded generator — no hand-rolled bridge.
+    /// consumers need only supply the loaded generator — no hand-rolled bridge.
     /// </summary>
     /// <param name="builder">The iron-prow builder.</param>
     /// <param name="id">Unique provider id for the gateway registry.</param>

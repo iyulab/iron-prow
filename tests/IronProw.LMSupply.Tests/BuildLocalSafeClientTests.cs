@@ -13,7 +13,7 @@ public class BuildLocalSafeClientTests
     [Fact]
     public void BuildLocalSafeClient_returns_a_guarded_local_chat_client_without_a_gateway()
     {
-        // Lightweight path for single-local-provider consumers (textree): bridge + safety-wrap only,
+        // Lightweight path for single-local-provider consumers: bridge + safety-wrap only,
         // no builder / registry / selection / resilience layers. The result is a plain IChatClient.
         var generator = Substitute.For<ITextGenerator>();
         var probe = Substitute.For<IReadinessProbe>();

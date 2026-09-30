@@ -14,7 +14,7 @@ namespace IronProw.LMSupply.Tests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Why a real model is needed at all: the defect (docket-tracked as the local path's empty-answer failure)
+/// Why a real model is needed at all: the defect (the local path returning an empty answer)
 /// only exists because a thinking-default model spends a small output budget on reasoning before it writes
 /// any answer text. A fake generator cannot reproduce that — it returns whatever the test told it to — so the
 /// unit facts pin the <em>mapping</em> (effort → thinking mode, reasoning → <c>TextReasoningContent</c>) while

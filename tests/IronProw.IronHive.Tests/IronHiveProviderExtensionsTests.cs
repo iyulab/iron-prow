@@ -116,7 +116,7 @@ public class IronHiveProviderExtensionsTests
     [Fact]
     public void Adapters_register_distinct_candidates_ordered_by_priority()
     {
-        // The full Filer fallback set: gpustack(LAN) -> ollama(LAN) -> openai -> anthropic -> google.
+        // A full fallback set: gpustack(LAN) -> ollama(LAN) -> openai -> anthropic -> google.
         // LAN candidates rank highest; the registry orders by priority desc.
         var services = new ServiceCollection();
         var builder = services.AddIronProw();

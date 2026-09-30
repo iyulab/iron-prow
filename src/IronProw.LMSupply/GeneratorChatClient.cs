@@ -19,9 +19,8 @@ namespace IronProw.LMSupply;
 /// </summary>
 /// <remarks>
 /// <para>
-/// lm-supply does not natively expose <c>IChatClient</c>; before this bridge existed each local-inference
-/// consumer (ironhive-host, textree, iron-prow) re-implemented the same mapping. This is the canonical
-/// shared bridge for the iron-prow safe-inference gateway (rule-of-three).
+/// lm-supply does not natively expose <c>IChatClient</c>; this is the bridge, so a local-inference
+/// consumer does not have to re-implement the mapping.
 /// </para>
 /// <para>
 /// <b>Token mapping:</b> <see cref="ChatOptions.MaxOutputTokens"/> maps to
@@ -46,7 +45,7 @@ namespace IronProw.LMSupply;
 /// and <see cref="GetService"/> answers <see cref="ChatClientMetadata"/> with <see cref="Metadata"/>.
 /// </para>
 /// <para>
-/// The generator lifecycle is owned by the caller (e.g. textree's pool / loader); <see cref="Dispose"/>
+/// The generator lifecycle is owned by the caller (e.g. its model pool or loader); <see cref="Dispose"/>
 /// is intentionally a no-op so wrapping this client never disposes a generator the gateway does not own.
 /// </para>
 /// </remarks>

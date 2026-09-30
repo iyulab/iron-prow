@@ -15,7 +15,7 @@ public enum FluxGuardFailMode
 
     /// <summary>
     /// Uncertain verdicts pass through (opt-in). For consumers that prefer availability over strict
-    /// gating and resolve flagged content out of band (e.g. Filer's <c>FailMode.Open</c>).
+    /// gating and resolve flagged content out of band.
     /// </summary>
     Open
 }

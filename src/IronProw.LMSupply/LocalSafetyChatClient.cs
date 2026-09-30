@@ -13,9 +13,7 @@ namespace IronProw.LMSupply;
 /// </list>
 /// <para>
 /// <b>Crash-fallback limitation:</b> True ONNX GenAI DirectML inference-crash CPU-fallback is an
-/// upstream lm-supply concern (tracked in
-/// <c>ISSUE-LMSupply.Generator-20260629-onnx-directml-inference-crash-no-cpu-fallback.md</c>,
-/// owner-gated). <c>LocalSafetyChatClient</c> provides gateway-level safety only: a pre-first-token
+/// lm-supply concern. <c>LocalSafetyChatClient</c> provides gateway-level safety only: a pre-first-token
 /// local crash surfaces as an unhandled exception that <c>SelectingChatClient</c> can classify as
 /// <c>FallbackEligible</c> and use to degrade to the next configured provider.
 /// Mid-stream provider swaps are intentionally not attempted.

@@ -4,7 +4,7 @@
 > provider selection (frontier ∨ LAN GpuStack) · guardrail · resilience — delivered as a standard `Microsoft.Extensions.AI.IChatClient`.
 
 두 갈래 필수: frontier/LAN 게이트웨이(A) **and** local-provider safety(B).  
-역할·범위·설계 근거는 [`CHARTER.md`](./CHARTER.md) 참조.  
+범위는 *한 번의 안전한 호출*(provider 선택 · guardrail · resilience · length-bounding)까지다. 여러 호출을 엮는 에이전트 루프·세션·MCP·HITL 은 호스트의 몫이다.  
 이미 자체 배선(provider·resilience·guardrail)을 가진 앱의 이관은 [`docs/ADOPTION.md`](./docs/ADOPTION.md) 참조.
 
 ## Packages
@@ -127,7 +127,7 @@ IChatClient chat = provider.GetRequiredService<IChatClient>();
 
 #### 경량 경로 — 단일 local provider (게이트웨이 없이)
 
-폴백 대상 2번째 provider가 없는 **local-first 단일 provider** 소비자(예: textree)에게는 게이트웨이의 registry·selection·resilience 레이어가 전부 inert하다. 이 경우 `BuildLocalSafeClient`가 브리지+안전wrap만 조립한 plain `IChatClient`를 등록 없이 반환한다:
+폴백 대상 2번째 provider가 없는 **local-first 단일 provider** 소비자에게는 게이트웨이의 registry·selection·resilience 레이어가 전부 inert하다. 이 경우 `BuildLocalSafeClient`가 브리지+안전wrap만 조립한 plain `IChatClient`를 등록 없이 반환한다:
 
 ```csharp
 using IronProw.LMSupply;
@@ -299,7 +299,7 @@ iron-prow는 두 시나리오를 독립적이면서도 조합 가능하게 커�
 | **A. Frontier / LAN** | `AddIronHiveOpenAI` · `AddIronHiveAnthropic` · `AddIronHiveGoogleAI` · `AddIronHiveGpuStack` · `AddIronHiveOpenAICompatible` | provider 레지스트리, 우선순위 선택, retry, provider-level fallback, 전환 이벤트(`OnTransition`) |
 | **B. local-provider safety** | `AddLMSupplyLocal` | model-ID preflight, readiness gate, length-bounding, crash→fallback |
 
-어느 한 갈래만 구현하면 수요의 절반을 놓친다 (CHARTER §기능 표면).  
+두 갈래는 따로 쓸 수도, 한 게이트웨이 안에서 조합할 수도 있다.  
 `UseFluxGuard()`는 두 갈래 공통 — 관문에서 일괄 적용된다.
 
 > ⚠️ The guard is opt-in. `AddIronProw()` installs a default `NullGuard` that allows all traffic. A gateway without `UseFluxGuard()` (or a custom `UseGuard(...)`) performs NO input/output guardrail checks. Always register a guard in production.
@@ -311,7 +311,7 @@ iron-prow는 두 시나리오를 독립적이면서도 조합 가능하게 커�
 
 ## See also
 
-- [`CHARTER.md`](./CHARTER.md) — iron-prow 정체성, 범위, 의존 규칙, 로드맵 앵커
+- [`docs/ADOPTION.md`](./docs/ADOPTION.md) — 자체 배선(provider·resilience·guardrail)을 가진 앱의 이관 가이드
 
 ## License
 
