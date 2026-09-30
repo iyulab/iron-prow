@@ -9,6 +9,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ### Changed
 - `UseFluxGuard` builds its guard through `FluxGuardBuilder` rather than FluxGuard's static factory, which FluxGuard
   0.18.0 removes. Behaviour is unchanged: the standard preset, then your `configure` action.
+- Re-pinned sibling package(s) `FluxGuard` 0.17.1 -> 0.18.0, `IronHive.Extensions.AI` 0.45.1 -> 0.45.2, `IronHive.Providers.Anthropic` 0.45.1 -> 0.45.2, `IronHive.Providers.GoogleAI` 0.45.1 -> 0.45.2, `IronHive.Providers.OpenAI` 0.45.1 -> 0.45.2, `IronHive.Providers.OpenAI.Compatible` 0.45.1 -> 0.45.2, `LMSupply.Generator` 0.93.1 -> 0.94.0.
 
 ## [0.10.2] - 2026-09-30
 
