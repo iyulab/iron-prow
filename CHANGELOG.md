@@ -14,12 +14,12 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ## [0.10.2] - 2026-09-30
 
 ### Changed
-- Re-pinned sibling package(s) `FluxGuard` 0.17.0 -> 0.17.1 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `FluxGuard` 0.17.0 -> 0.17.1 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.10.1] - 2026-09-30
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.93.0 -> 0.93.1 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.93.0 -> 0.93.1 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.10.0] - 2026-09-29
 
@@ -32,7 +32,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ### Changed
 - **Breaking**: a second `AddTenantResolver` call throws `InvalidOperationException`. It was silently ignored, so every
   tenant went through the first resolver.
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.92.1 -> 0.93.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.92.1 -> 0.93.0 — re-consumption of already-consumed iyulab packages.
 
 ### Documentation
 - The README's C# blocks are complete programs and are compiled against the current API by a test.
@@ -58,47 +58,47 @@ breaking changes, and each one is marked **Breaking** with a migration note.
   bounds, no input/output guard.
 - README: `GetService<ChatClientMetadata>()` returns the LMSupply metadata on the `BuildLocalSafeClient` client only; the
   gateway selects a provider per call and returns `null` (read `ChatResponse.ModelId`).
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.92.0 -> 0.92.1 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.92.0 -> 0.92.1 — re-consumption of already-consumed iyulab packages.
 
 ## [0.8.14] - 2026-09-29
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.45.0 -> 0.45.1, `IronHive.Providers.Anthropic` 0.45.0 -> 0.45.1, `IronHive.Providers.GoogleAI` 0.45.0 -> 0.45.1, `IronHive.Providers.OpenAI` 0.45.0 -> 0.45.1, `IronHive.Providers.OpenAI.Compatible` 0.45.0 -> 0.45.1, `LMSupply.Generator` 0.91.0 -> 0.92.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.45.0 -> 0.45.1, `IronHive.Providers.Anthropic` 0.45.0 -> 0.45.1, `IronHive.Providers.GoogleAI` 0.45.0 -> 0.45.1, `IronHive.Providers.OpenAI` 0.45.0 -> 0.45.1, `IronHive.Providers.OpenAI.Compatible` 0.45.0 -> 0.45.1, `LMSupply.Generator` 0.91.0 -> 0.92.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.13] - 2026-09-29
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.90.0 -> 0.91.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.90.0 -> 0.91.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.12] - 2026-09-29
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.89.0 -> 0.90.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.89.0 -> 0.90.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.11] - 2026-09-28
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.44.0 -> 0.45.0, `IronHive.Providers.Anthropic` 0.44.0 -> 0.45.0, `IronHive.Providers.GoogleAI` 0.44.0 -> 0.45.0, `IronHive.Providers.OpenAI` 0.44.0 -> 0.45.0, `IronHive.Providers.OpenAI.Compatible` 0.44.0 -> 0.45.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.44.0 -> 0.45.0, `IronHive.Providers.Anthropic` 0.44.0 -> 0.45.0, `IronHive.Providers.GoogleAI` 0.44.0 -> 0.45.0, `IronHive.Providers.OpenAI` 0.44.0 -> 0.45.0, `IronHive.Providers.OpenAI.Compatible` 0.44.0 -> 0.45.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.10] - 2026-09-28
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.88.0 -> 0.89.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.88.0 -> 0.89.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.9] - 2026-09-28
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.43.1 -> 0.44.0, `IronHive.Providers.Anthropic` 0.43.1 -> 0.44.0, `IronHive.Providers.GoogleAI` 0.43.1 -> 0.44.0, `IronHive.Providers.OpenAI` 0.43.1 -> 0.44.0, `IronHive.Providers.OpenAI.Compatible` 0.43.1 -> 0.44.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.43.1 -> 0.44.0, `IronHive.Providers.Anthropic` 0.43.1 -> 0.44.0, `IronHive.Providers.GoogleAI` 0.43.1 -> 0.44.0, `IronHive.Providers.OpenAI` 0.43.1 -> 0.44.0, `IronHive.Providers.OpenAI.Compatible` 0.43.1 -> 0.44.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.8] - 2026-09-28
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.43.0 -> 0.43.1, `IronHive.Providers.Anthropic` 0.43.0 -> 0.43.1, `IronHive.Providers.GoogleAI` 0.43.0 -> 0.43.1, `IronHive.Providers.OpenAI` 0.43.0 -> 0.43.1, `IronHive.Providers.OpenAI.Compatible` 0.43.0 -> 0.43.1 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.43.0 -> 0.43.1, `IronHive.Providers.Anthropic` 0.43.0 -> 0.43.1, `IronHive.Providers.GoogleAI` 0.43.0 -> 0.43.1, `IronHive.Providers.OpenAI` 0.43.0 -> 0.43.1, `IronHive.Providers.OpenAI.Compatible` 0.43.0 -> 0.43.1 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.7] - 2026-09-28
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.42.0 -> 0.43.0, `IronHive.Providers.Anthropic` 0.42.0 -> 0.43.0, `IronHive.Providers.GoogleAI` 0.42.0 -> 0.43.0, `IronHive.Providers.OpenAI` 0.42.0 -> 0.43.0, `IronHive.Providers.OpenAI.Compatible` 0.42.0 -> 0.43.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.42.0 -> 0.43.0, `IronHive.Providers.Anthropic` 0.42.0 -> 0.43.0, `IronHive.Providers.GoogleAI` 0.42.0 -> 0.43.0, `IronHive.Providers.OpenAI` 0.42.0 -> 0.43.0, `IronHive.Providers.OpenAI.Compatible` 0.42.0 -> 0.43.0 — re-consumption of already-consumed iyulab packages.
 
 ### Fixed
 
@@ -110,32 +110,32 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ## [0.8.6] - 2026-09-28
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.87.0 -> 0.88.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.87.0 -> 0.88.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.5] - 2026-09-28
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.86.0 -> 0.87.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.86.0 -> 0.87.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.4] - 2026-09-27
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.85.0 -> 0.86.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.85.0 -> 0.86.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.3] - 2026-09-27
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.84.0 -> 0.85.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.84.0 -> 0.85.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.2] - 2026-09-27
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.83.0 -> 0.84.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.83.0 -> 0.84.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.1] - 2026-09-27
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.81.1 -> 0.83.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.81.1 -> 0.83.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.8.0] - 2026-09-27
 
@@ -151,7 +151,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ## [0.7.3] - 2026-09-27
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.80.0 -> 0.81.1 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.80.0 -> 0.81.1 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.7.2] - 2026-09-26
 
@@ -164,7 +164,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ## [0.7.1] - 2026-09-26
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.40.0 -> 0.41.0, `IronHive.Providers.Anthropic` 0.40.0 -> 0.41.0, `IronHive.Providers.GoogleAI` 0.40.0 -> 0.41.0, `IronHive.Providers.OpenAI` 0.40.0 -> 0.41.0, `IronHive.Providers.OpenAI.Compatible` 0.40.0 -> 0.41.0, `LMSupply.Generator` 0.79.0 -> 0.79.1 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.40.0 -> 0.41.0, `IronHive.Providers.Anthropic` 0.40.0 -> 0.41.0, `IronHive.Providers.GoogleAI` 0.40.0 -> 0.41.0, `IronHive.Providers.OpenAI` 0.40.0 -> 0.41.0, `IronHive.Providers.OpenAI.Compatible` 0.40.0 -> 0.41.0, `LMSupply.Generator` 0.79.0 -> 0.79.1 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.7.0] - 2026-09-26
 
@@ -177,22 +177,22 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ## [0.6.3] - 2026-09-26
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.39.0 -> 0.40.0, `IronHive.Providers.Anthropic` 0.39.0 -> 0.40.0, `IronHive.Providers.GoogleAI` 0.39.0 -> 0.40.0, `IronHive.Providers.OpenAI` 0.39.0 -> 0.40.0, `IronHive.Providers.OpenAI.Compatible` 0.39.0 -> 0.40.0, `LMSupply.Generator` 0.77.0 -> 0.78.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.39.0 -> 0.40.0, `IronHive.Providers.Anthropic` 0.39.0 -> 0.40.0, `IronHive.Providers.GoogleAI` 0.39.0 -> 0.40.0, `IronHive.Providers.OpenAI` 0.39.0 -> 0.40.0, `IronHive.Providers.OpenAI.Compatible` 0.39.0 -> 0.40.0, `LMSupply.Generator` 0.77.0 -> 0.78.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.6.2] - 2026-09-26
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.38.0 -> 0.39.0, `IronHive.Providers.Anthropic` 0.38.0 -> 0.39.0, `IronHive.Providers.GoogleAI` 0.38.0 -> 0.39.0, `IronHive.Providers.OpenAI` 0.38.0 -> 0.39.0, `IronHive.Providers.OpenAI.Compatible` 0.38.0 -> 0.39.0, `LMSupply.Generator` 0.76.0 -> 0.77.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.38.0 -> 0.39.0, `IronHive.Providers.Anthropic` 0.38.0 -> 0.39.0, `IronHive.Providers.GoogleAI` 0.38.0 -> 0.39.0, `IronHive.Providers.OpenAI` 0.38.0 -> 0.39.0, `IronHive.Providers.OpenAI.Compatible` 0.38.0 -> 0.39.0, `LMSupply.Generator` 0.76.0 -> 0.77.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.6.1] - 2026-09-25
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.37.0 -> 0.38.0, `IronHive.Providers.Anthropic` 0.37.0 -> 0.38.0, `IronHive.Providers.GoogleAI` 0.37.0 -> 0.38.0, `IronHive.Providers.OpenAI` 0.37.0 -> 0.38.0, `IronHive.Providers.OpenAI.Compatible` 0.37.0 -> 0.38.0, `LMSupply.Generator` 0.75.0 -> 0.76.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.37.0 -> 0.38.0, `IronHive.Providers.Anthropic` 0.37.0 -> 0.38.0, `IronHive.Providers.GoogleAI` 0.37.0 -> 0.38.0, `IronHive.Providers.OpenAI` 0.37.0 -> 0.38.0, `IronHive.Providers.OpenAI.Compatible` 0.37.0 -> 0.38.0, `LMSupply.Generator` 0.75.0 -> 0.76.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.6.0] - 2026-09-24
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.36.0 -> 0.37.0, `IronHive.Providers.Anthropic` 0.36.0 -> 0.37.0, `IronHive.Providers.GoogleAI` 0.36.0 -> 0.37.0, `IronHive.Providers.OpenAI` 0.36.0 -> 0.37.0, `IronHive.Providers.OpenAI.Compatible` 0.36.0 -> 0.37.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.36.0 -> 0.37.0, `IronHive.Providers.Anthropic` 0.36.0 -> 0.37.0, `IronHive.Providers.GoogleAI` 0.36.0 -> 0.37.0, `IronHive.Providers.OpenAI` 0.36.0 -> 0.37.0, `IronHive.Providers.OpenAI.Compatible` 0.36.0 -> 0.37.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ### Added
 - **`WithDegenerationStop()` / `DegenerationStopChatClient` stops a generation stuck repeating itself** (opt-in, on any
@@ -216,7 +216,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 - **A retry waits the provider's `Retry-After` / `retry-after-ms`** when it is longer than the backoff, up to the new
   `ResilienceOptions.MaxRetryAfter` (default 10 s); a longer hint is not waited — the gateway moves to the next
   provider.
-- Re-pinned sibling package(s) `IronHive.Core` 0.35.0 -> 0.36.0, `IronHive.Providers.Anthropic` 0.35.0 -> 0.36.0, `IronHive.Providers.GoogleAI` 0.35.0 -> 0.36.0, `IronHive.Providers.OpenAI` 0.35.0 -> 0.36.0, `IronHive.Providers.OpenAI.Compatible` 0.35.0 -> 0.36.0, `LMSupply.Generator` 0.74.0 -> 0.75.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.35.0 -> 0.36.0, `IronHive.Providers.Anthropic` 0.35.0 -> 0.36.0, `IronHive.Providers.GoogleAI` 0.35.0 -> 0.36.0, `IronHive.Providers.OpenAI` 0.35.0 -> 0.36.0, `IronHive.Providers.OpenAI.Compatible` 0.35.0 -> 0.36.0, `LMSupply.Generator` 0.74.0 -> 0.75.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ### Added
 - **`IHttpFailureReader` / `HttpFailure`** — how the gateway learns the status and retry hint an exception describes.
@@ -232,73 +232,73 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ## [0.4.22] - 2026-09-24
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.34.0 -> 0.35.0, `IronHive.Providers.Anthropic` 0.34.0 -> 0.35.0, `IronHive.Providers.GoogleAI` 0.34.0 -> 0.35.0, `IronHive.Providers.OpenAI` 0.34.0 -> 0.35.0, `IronHive.Providers.OpenAI.Compatible` 0.34.0 -> 0.35.0, `LMSupply.Generator` 0.73.0 -> 0.74.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.34.0 -> 0.35.0, `IronHive.Providers.Anthropic` 0.34.0 -> 0.35.0, `IronHive.Providers.GoogleAI` 0.34.0 -> 0.35.0, `IronHive.Providers.OpenAI` 0.34.0 -> 0.35.0, `IronHive.Providers.OpenAI.Compatible` 0.34.0 -> 0.35.0, `LMSupply.Generator` 0.73.0 -> 0.74.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.21] - 2026-09-24
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.33.1 -> 0.34.0, `IronHive.Providers.Anthropic` 0.33.1 -> 0.34.0, `IronHive.Providers.GoogleAI` 0.33.1 -> 0.34.0, `IronHive.Providers.OpenAI` 0.33.1 -> 0.34.0, `IronHive.Providers.OpenAI.Compatible` 0.33.1 -> 0.34.0, `LMSupply.Generator` 0.72.1 -> 0.73.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.33.1 -> 0.34.0, `IronHive.Providers.Anthropic` 0.33.1 -> 0.34.0, `IronHive.Providers.GoogleAI` 0.33.1 -> 0.34.0, `IronHive.Providers.OpenAI` 0.33.1 -> 0.34.0, `IronHive.Providers.OpenAI.Compatible` 0.33.1 -> 0.34.0, `LMSupply.Generator` 0.72.1 -> 0.73.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.20] - 2026-09-23
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.72.0 -> 0.72.1 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.72.0 -> 0.72.1 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.19] - 2026-09-23
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.33.0 -> 0.33.1, `IronHive.Providers.Anthropic` 0.33.0 -> 0.33.1, `IronHive.Providers.GoogleAI` 0.33.0 -> 0.33.1, `IronHive.Providers.OpenAI` 0.33.0 -> 0.33.1, `IronHive.Providers.OpenAI.Compatible` 0.33.0 -> 0.33.1 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.33.0 -> 0.33.1, `IronHive.Providers.Anthropic` 0.33.0 -> 0.33.1, `IronHive.Providers.GoogleAI` 0.33.0 -> 0.33.1, `IronHive.Providers.OpenAI` 0.33.0 -> 0.33.1, `IronHive.Providers.OpenAI.Compatible` 0.33.0 -> 0.33.1 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.18] - 2026-09-23
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.71.0 -> 0.72.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.71.0 -> 0.72.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.17] - 2026-09-22
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.70.0 -> 0.71.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.70.0 -> 0.71.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.16] - 2026-09-21
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.69.0 -> 0.70.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.69.0 -> 0.70.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.15] - 2026-09-21
 
 ### Changed
-- Re-pinned sibling package(s) `LMSupply.Generator` 0.68.3 -> 0.69.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.68.3 -> 0.69.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.14] - 2026-09-21
 
 ### Changed
-- Re-pinned sibling package(s) `FluxGuard` 0.16.0 -> 0.17.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `FluxGuard` 0.16.0 -> 0.17.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.13] - 2026-09-20
 
 ### Changed
-- Re-pinned sibling package(s) `FluxGuard` 0.15.1 -> 0.16.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `FluxGuard` 0.15.1 -> 0.16.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.12] - 2026-09-20
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.32.0 -> 0.33.0, `IronHive.Providers.Anthropic` 0.32.0 -> 0.33.0, `IronHive.Providers.GoogleAI` 0.32.0 -> 0.33.0, `IronHive.Providers.OpenAI` 0.32.0 -> 0.33.0, `IronHive.Providers.OpenAI.Compatible` 0.32.0 -> 0.33.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.32.0 -> 0.33.0, `IronHive.Providers.Anthropic` 0.32.0 -> 0.33.0, `IronHive.Providers.GoogleAI` 0.32.0 -> 0.33.0, `IronHive.Providers.OpenAI` 0.32.0 -> 0.33.0, `IronHive.Providers.OpenAI.Compatible` 0.32.0 -> 0.33.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.11] - 2026-09-19
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.31.0 -> 0.32.0, `IronHive.Providers.Anthropic` 0.31.0 -> 0.32.0, `IronHive.Providers.GoogleAI` 0.31.0 -> 0.32.0, `IronHive.Providers.OpenAI` 0.31.0 -> 0.32.0, `IronHive.Providers.OpenAI.Compatible` 0.31.0 -> 0.32.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.31.0 -> 0.32.0, `IronHive.Providers.Anthropic` 0.31.0 -> 0.32.0, `IronHive.Providers.GoogleAI` 0.31.0 -> 0.32.0, `IronHive.Providers.OpenAI` 0.31.0 -> 0.32.0, `IronHive.Providers.OpenAI.Compatible` 0.31.0 -> 0.32.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.10] - 2026-09-19
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.30.0 -> 0.31.0, `IronHive.Providers.Anthropic` 0.30.0 -> 0.31.0, `IronHive.Providers.GoogleAI` 0.30.0 -> 0.31.0, `IronHive.Providers.OpenAI` 0.30.0 -> 0.31.0, `IronHive.Providers.OpenAI.Compatible` 0.30.0 -> 0.31.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.30.0 -> 0.31.0, `IronHive.Providers.Anthropic` 0.30.0 -> 0.31.0, `IronHive.Providers.GoogleAI` 0.30.0 -> 0.31.0, `IronHive.Providers.OpenAI` 0.30.0 -> 0.31.0, `IronHive.Providers.OpenAI.Compatible` 0.30.0 -> 0.31.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.9] - 2026-09-19
 
 ### Changed
-- Re-pinned sibling package(s) `IronHive.Core` 0.29.1 -> 0.29.2, `IronHive.Providers.Anthropic` 0.29.1 -> 0.29.2, `IronHive.Providers.GoogleAI` 0.29.1 -> 0.29.2, `IronHive.Providers.OpenAI` 0.29.1 -> 0.29.2, `IronHive.Providers.OpenAI.Compatible` 0.29.1 -> 0.29.2 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
-- Re-pinned sibling package(s) `IronHive.Core` 0.29.2 -> 0.30.0, `IronHive.Providers.Anthropic` 0.29.2 -> 0.30.0, `IronHive.Providers.GoogleAI` 0.29.2 -> 0.30.0, `IronHive.Providers.OpenAI` 0.29.2 -> 0.30.0, `IronHive.Providers.OpenAI.Compatible` 0.29.2 -> 0.30.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.29.1 -> 0.29.2, `IronHive.Providers.Anthropic` 0.29.1 -> 0.29.2, `IronHive.Providers.GoogleAI` 0.29.1 -> 0.29.2, `IronHive.Providers.OpenAI` 0.29.1 -> 0.29.2, `IronHive.Providers.OpenAI.Compatible` 0.29.1 -> 0.29.2 — re-consumption of already-consumed iyulab packages. No source changes.
+- Re-pinned sibling package(s) `IronHive.Core` 0.29.2 -> 0.30.0, `IronHive.Providers.Anthropic` 0.29.2 -> 0.30.0, `IronHive.Providers.GoogleAI` 0.29.2 -> 0.30.0, `IronHive.Providers.OpenAI` 0.29.2 -> 0.30.0, `IronHive.Providers.OpenAI.Compatible` 0.29.2 -> 0.30.0 — re-consumption of already-consumed iyulab packages. No source changes.
 
 ## [0.4.8] - 2026-09-19
 
