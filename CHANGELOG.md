@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.11.0] - Unreleased
+
+### Added
+- **`ByoPresets`: a catalogue of bring-your-own endpoint presets** (`openai`, `anthropic`, `gemini`, `grok`, `ollama`,
+  `gpustack`, `custom`) with each one's kind, default base URL and key requirement — so an app's settings screen, its
+  validation and its gateway registration read one source.
+- **`ByoPresets.Validate(endpoint)`** states why an entered endpoint cannot be used (unknown preset, missing or non-http(s)
+  base URL, missing key) without contacting anything.
+- **`AddIronHiveByo(id, priority, modelId, endpoint)`** registers an endpoint through the provider its preset names.
+- **`ByoPresets.ProbeAsync(endpoint)` checks the connection for real**: one authenticated model-list request through
+  the provider's own model finder, frontier providers included — a wrong key comes back as a failure with its HTTP
+  status (401/400) and the provider's message, not as "connected".
+
 ## [0.10.8] - 2026-10-01
 
 ### Changed

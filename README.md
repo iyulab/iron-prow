@@ -65,7 +65,7 @@ catch (GuardException ex)   // 가드가 입력이나 출력을 막았다
 }
 ```
 
-`IronProw.IronHive`는 다섯 가지 provider 어댑터를 제공한다:
+`IronProw.IronHive`는 다섯 가지 provider 어댑터와 BYO 프리셋 카탈로그(`ByoPresets`, 아래)를 제공한다:
 - `AddIronHiveOpenAI` · `AddIronHiveAnthropic` · `AddIronHiveGoogleAI` — frontier (`ProviderKind.Frontier`)
 - `AddIronHiveGpuStack` — LAN GpuStack (`ProviderKind.Lan`, key-optional). `cfg => cfg.BaseUrl = "http://gpustack.lan:8080"` 형태로 endpoint 지정.
 - `AddIronHiveOpenAICompatible` — LAN generic OpenAI-호환(Ollama·LMStudio·vLLM·llama.cpp server, `ProviderKind.Lan`, key-optional). 표준 `/v1` API 표면을 노출하는 엔드포인트를 대상으로 하며 기본 endpoint는 Ollama의 `http://localhost:11434`. `cfg => cfg.BaseUrl = "http://localhost:1234"`(LMStudio)처럼 override.
@@ -78,6 +78,34 @@ services.AddIronProw()
             modelId: "llama3.2",
             configure: cfg => cfg.BaseUrl = "http://localhost:11434");  // key 불필요
 ```
+
+#### 사용자 지정(BYO) 엔드포인트 — `ByoPresets` (0.11.0+)
+
+사용자가 설정 화면에서 엔드포인트를 고르는 앱은 프리셋 카탈로그 하나로 기본값·검증·등록·연결 확인을 끝낸다:
+
+| 프리셋 id | 종류 | 기본 base URL | 키 |
+|---|---|---|---|
+| `openai` · `anthropic` · `gemini` | frontier | SDK 기본값(비워 두면 그대로) | 필수 |
+| `grok` | frontier (OpenAI-호환) | `https://api.x.ai/v1` | 필수 |
+| `ollama` · `gpustack` | LAN | `http://localhost:11434` · `http://localhost:8080` | 선택 |
+| `custom` | LAN (OpenAI-호환) | 없음 — **필수** | 선택 |
+
+```csharp
+var userKey = Environment.GetEnvironmentVariable("XAI_API_KEY");
+var endpoint = new ByoEndpoint("grok", BaseUrl: null, ApiKey: userKey);
+
+string? why = ByoPresets.Validate(endpoint);                          // 접속 없이 입력 규칙만 — null 이면 사용 가능
+ByoProbeResult probe = await ByoPresets.ProbeAsync(endpoint);         // 모델 목록 1회 — 실제 인증
+// probe.Ok / probe.ModelCount / probe.StatusCode(401 = 잘못된 키, 404 = 잘못된 경로) / probe.Error
+
+if (why is null && probe.Ok)
+{
+    services.AddIronProw().AddIronHiveByo(id: "user-endpoint", priority: 30, modelId: "grok-4", endpoint);
+}
+```
+
+- `ByoPresets.All` 은 앱이 UI 기본값·검증을 채우는 정본이다(표시 이름·문구는 앱 몫). 모르는 프리셋 id 는 조용히 OpenAI-호환으로 보내지 않고 `Validate` 가 거부한다.
+- `ProbeAsync` 는 각 provider 의 모델 파인더(`OpenAIModelFinder` · `AnthropicModelFinder` · `GoogleAIModelFinder`)로 한 번 인증 요청을 보낸다 — frontier 도 "무조건 연결됨" 이 아니다. 기본 제한시간 10초, 실패는 예외가 아니라 결과로 온다(취소만 예외).
 
 `UseFluxGuard()` (파라미터 없음) 는 Standard preset(L1 regex, offline)을 적용한다.  
 `UseFluxGuard(configure: b => …)` 는 Standard preset 위에 FluxGuard 빌더 설정을 더한다(예: `b.WithBlockThreshold(0.8)`). 이미 만든 FluxGuard 인스턴스를 주입하려면 `UseFluxGuard(IFluxGuard)` 오버로드를 사용한다. 다른 가드는 `UseGuard(sp => myGuard)` 로 `IGuard` 를 직접 꽂는다.  
