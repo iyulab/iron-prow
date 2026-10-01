@@ -26,6 +26,6 @@
     <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.45.4" />
     <PackageVersion Include="IronHive.Providers.GoogleAI" Version="0.45.4" />
     <!-- LMSupply local-inference packages -->
-    <PackageVersion Include="LMSupply.Generator" Version="0.97.0" />
+    <PackageVersion Include="LMSupply.Generator" Version="0.98.0" />
   </ItemGroup>
 </Project>
