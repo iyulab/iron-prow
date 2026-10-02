@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.12.1] - 2026-10-02
+
+### Changed
+- Re-pinned sibling package(s) `FluxGuard` 0.18.1 -> 0.18.2, `LMSupply.Generator` 0.98.0 -> 0.98.1. No source changes.
+
 ## [0.12.0] - 2026-10-02
 
 ### Added
