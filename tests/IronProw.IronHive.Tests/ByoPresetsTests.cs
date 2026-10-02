@@ -102,8 +102,10 @@ public class ByoPresetsTests
         ok.Lists("m3").Should().BeFalse("a listed id is matched exactly");
         (ok.StatusCode, ok.Error).Should().Be(((int?)null, (string?)null));
         server.Paths.Should().AllBe("/v1/models");
+        ok.Failure.Should().BeNull();
         refused.Ok.Should().BeFalse();
         refused.StatusCode.Should().Be(401);
+        refused.Failure.Should().Be(ByoProbeFailure.Unauthorized);
         refused.Error.Should().NotBeNullOrEmpty();
     }
 
@@ -126,6 +128,7 @@ public class ByoPresetsTests
         result.Ok.Should().BeFalse();
         result.ModelIds.Should().BeEmpty();
         result.Error.Should().Be("The 'anthropic' preset needs an API key.");
+        result.Failure.Should().Be(ByoProbeFailure.Invalid);
     }
 
     [Fact]
@@ -139,6 +142,7 @@ public class ByoPresetsTests
         server.Paths.Should().ContainSingle();
         result.Ok.Should().BeFalse();
         result.StatusCode.Should().Be(503);
+        result.Failure.Should().Be(ByoProbeFailure.HttpStatus);
         result.Error.Should().Contain("overloaded");
     }
 
@@ -167,6 +171,57 @@ public class ByoPresetsTests
 
         result.Ok.Should().BeFalse();
         result.Error.Should().Be("No answer within 0.5 s.");
+        result.Failure.Should().Be(ByoProbeFailure.Timeout);
+    }
+
+    // The application words the failure itself; the kind must not depend on the wire. Windows reports a refused connect
+    // after ~2 s, which the compatible wire's connect timeout used to beat (IronHive < 0.46.1).
+    [Theory]
+    [InlineData("custom")]
+    [InlineData("ollama")]
+    [InlineData("gpustack")]
+    [InlineData("anthropic")]
+    [InlineData("gemini")]
+    [InlineData("openai")]
+    public async Task A_refused_connection_is_Refused_on_every_wire(string preset)
+    {
+        var port = FreePort();
+
+        var result = await ByoPresets.ProbeAsync(new ByoEndpoint(preset, $"http://127.0.0.1:{port}/v1", "key"), cancellationToken: Ct);
+
+        result.Ok.Should().BeFalse();
+        result.Failure.Should().Be(ByoProbeFailure.Refused, result.Error);
+        result.StatusCode.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_host_that_does_not_resolve_is_HostNotFound()
+    {
+        var result = await ByoPresets.ProbeAsync(new ByoEndpoint("custom", "http://no-such-host.invalid/v1"), cancellationToken: Ct);
+
+        result.Failure.Should().Be(ByoProbeFailure.HostNotFound, result.Error);
+    }
+
+    [Theory]
+    [InlineData(403, ByoProbeFailure.Unauthorized)]
+    [InlineData(404, ByoProbeFailure.HttpStatus)]
+    [InlineData(500, ByoProbeFailure.HttpStatus)]
+    public void A_status_decides_the_kind(int status, ByoProbeFailure expected) =>
+        ByoPresets.FailureOf(new InvalidOperationException("x"), status).Should().Be(expected);
+
+    [Fact]
+    public void Socket_errors_map_to_their_kind_through_any_wrapping()
+    {
+        static Exception Wrapped(System.Net.Sockets.SocketError error) =>
+            new InvalidOperationException("sdk", new HttpRequestException("send", new System.Net.Sockets.SocketException((int)error)));
+
+        ByoPresets.FailureOf(Wrapped(System.Net.Sockets.SocketError.ConnectionRefused), null).Should().Be(ByoProbeFailure.Refused);
+        ByoPresets.FailureOf(Wrapped(System.Net.Sockets.SocketError.HostNotFound), null).Should().Be(ByoProbeFailure.HostNotFound);
+        ByoPresets.FailureOf(Wrapped(System.Net.Sockets.SocketError.NetworkUnreachable), null).Should().Be(ByoProbeFailure.Unreachable);
+        ByoPresets.FailureOf(Wrapped(System.Net.Sockets.SocketError.ConnectionReset), null).Should().Be(ByoProbeFailure.Transport);
+        ByoPresets.FailureOf(new TaskCanceledException("t", new TimeoutException("connect")), null).Should().Be(ByoProbeFailure.Timeout);
+        ByoPresets.FailureOf(new TaskCanceledException("provider timeout"), null).Should().Be(ByoProbeFailure.Timeout);
+        ByoPresets.FailureOf(new System.Security.Authentication.AuthenticationException("tls"), null).Should().Be(ByoProbeFailure.Transport);
     }
 
     [Fact]

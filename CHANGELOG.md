@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.13.0] - Unreleased
+
+### Added
+- **`ByoProbeResult.Failure` — why a probe failed, as a kind an application can word itself.** `ByoProbeFailure`:
+  `Unauthorized` (401/403) · `HttpStatus` · `Timeout` · `Refused` · `HostNotFound` · `Unreachable` · `Transport` ·
+  `Invalid` (the entry failed `Validate`). It is read from the exception chain, so it does not depend on the operating
+  system's language. `Error` stays the human text — it may be localized and may repeat the address.
+
+### Fixed
+- **A refused connection is `Refused` on every wire.** On Windows a closed local port on the OpenAI-compatible and
+  GPUStack wires read as a connect timeout, because their connect timeout (2 s) equalled the time Windows takes to report
+  the refusal. IronHive 0.46.1 raises it to 3 s.
+
+### Changed
+- Re-pinned `IronHive.*` 0.46.0 -> 0.46.1.
+
 ## [0.12.2] - 2026-10-02
 
 ### Changed

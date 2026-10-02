@@ -60,15 +60,49 @@ public sealed record ByoEndpoint(
     string? ApiKey = null,
     IReadOnlyDictionary<string, string>? Headers = null);
 
+/// <summary>Why <see cref="ByoPresets.ProbeAsync"/> failed, for an application that words the failure itself.</summary>
+public enum ByoProbeFailure
+{
+    /// <summary>The endpoint refused the credential: HTTP 401 or 403.</summary>
+    Unauthorized = 1,
+
+    /// <summary>The endpoint answered with another HTTP error (<see cref="ByoProbeResult.StatusCode"/> says which).</summary>
+    HttpStatus = 2,
+
+    /// <summary>No answer in time: the probe's timeout, or no connection within the provider's connect timeout.</summary>
+    Timeout = 3,
+
+    /// <summary>The host is up but nothing listens on the port: the connection was refused.</summary>
+    Refused = 4,
+
+    /// <summary>The host name does not resolve.</summary>
+    HostNotFound = 5,
+
+    /// <summary>The network or the host cannot be reached at all.</summary>
+    Unreachable = 6,
+
+    /// <summary>Any other transport failure: TLS, a reset connection, a malformed response.</summary>
+    Transport = 7,
+
+    /// <summary>What the user entered failed <see cref="ByoPresets.Validate"/>; nothing was contacted.</summary>
+    Invalid = 8,
+}
+
 /// <summary>The outcome of <see cref="ByoPresets.ProbeAsync"/>.</summary>
 /// <param name="Ok">The endpoint answered an authenticated model-list request.</param>
 /// <param name="ModelIds">The ids of the models it listed, in the server's order (empty when not <see cref="Ok"/>).</param>
 /// <param name="StatusCode">The HTTP status of a refusal, when the provider reported one (401 = bad key, 404 = wrong path).</param>
-/// <param name="Error">Why it failed, or null when <see cref="Ok"/>.</param>
+/// <param name="Error">
+/// Why it failed, for a person, or null when <see cref="Ok"/>. It is the operating system's or the provider's text: it may be
+/// localized and may repeat the address or the provider's details. Classify with <see cref="Failure"/>, not this.
+/// </param>
 public sealed record ByoProbeResult(bool Ok, IReadOnlyList<string> ModelIds, int? StatusCode, string? Error)
 {
     /// <summary>How many models it listed (0 when not <see cref="Ok"/>).</summary>
     public int ModelCount => ModelIds.Count;
+
+    /// <summary>Why it failed, as a kind an application can word in its own language; null when <see cref="Ok"/>.</summary>
+    public ByoProbeFailure? Failure { get; init; }
 
     /// <summary>
     /// True when the endpoint answered and listed <paramref name="modelId"/> (ordinal comparison) - the check an
@@ -76,7 +110,8 @@ public sealed record ByoProbeResult(bool Ok, IReadOnlyList<string> ModelIds, int
     /// </summary>
     public bool Lists(string modelId) => Ok && ModelIds.Contains(modelId, StringComparer.Ordinal);
 
-    internal static ByoProbeResult Failed(int? statusCode, string error) => new(false, [], statusCode, error);
+    internal static ByoProbeResult Failed(ByoProbeFailure failure, int? statusCode, string error) =>
+        new(false, [], statusCode, error) { Failure = failure };
 }
 
 /// <summary>
@@ -224,7 +259,7 @@ public static class ByoPresets
         ArgumentNullException.ThrowIfNull(endpoint);
         if (Validate(endpoint) is { } invalid)
         {
-            return ByoProbeResult.Failed(null, invalid);
+            return ByoProbeResult.Failed(ByoProbeFailure.Invalid, null, invalid);
         }
 
         var budget = timeout ?? TimeSpan.FromSeconds(10);
@@ -238,12 +273,52 @@ public static class ByoPresets
         }
         catch (Exception) when (timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
-            return ByoProbeResult.Failed(null, $"No answer within {budget.TotalSeconds:0.#} s.");
+            return ByoProbeResult.Failed(ByoProbeFailure.Timeout, null, $"No answer within {budget.TotalSeconds:0.#} s.");
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
-            return ByoProbeResult.Failed(StatusOf(ex), ErrorOf(ex));
+            var status = StatusOf(ex);
+            return ByoProbeResult.Failed(FailureOf(ex, status), status, ErrorOf(ex));
         }
+    }
+
+    // The kind is read from the exception chain, where every SDK keeps the transport's own exception: the status of a
+    // refusal, the socket error of a failed connect, or the handler's connect timeout.
+    internal static ByoProbeFailure FailureOf(Exception exception, int? status)
+    {
+        if (status is { } code)
+        {
+            return code is 401 or 403 ? ByoProbeFailure.Unauthorized : ByoProbeFailure.HttpStatus;
+        }
+
+        var canceled = false;
+        for (var cause = exception; cause is not null; cause = cause.InnerException)
+        {
+            canceled |= cause is OperationCanceledException;
+            switch (cause)
+            {
+                case System.Net.Sockets.SocketException socket:
+                    return socket.SocketErrorCode switch
+                    {
+                        System.Net.Sockets.SocketError.ConnectionRefused => ByoProbeFailure.Refused,
+                        System.Net.Sockets.SocketError.HostNotFound or System.Net.Sockets.SocketError.NoData
+                            or System.Net.Sockets.SocketError.TryAgain => ByoProbeFailure.HostNotFound,
+                        System.Net.Sockets.SocketError.HostUnreachable or System.Net.Sockets.SocketError.NetworkUnreachable
+                            or System.Net.Sockets.SocketError.HostDown or System.Net.Sockets.SocketError.NetworkDown
+                            => ByoProbeFailure.Unreachable,
+                        System.Net.Sockets.SocketError.TimedOut => ByoProbeFailure.Timeout,
+                        _ => ByoProbeFailure.Transport,
+                    };
+                case TimeoutException:
+                    // SocketsHttpHandler's ConnectTimeout: "A connection could not be established within the configured ConnectTimeout."
+                    return ByoProbeFailure.Timeout;
+                case HttpRequestException { HttpRequestError: HttpRequestError.NameResolutionError }:
+                    return ByoProbeFailure.HostNotFound;
+            }
+        }
+
+        // A cancellation that is neither the caller's nor the probe's budget is a provider's own request timeout.
+        return canceled ? ByoProbeFailure.Timeout : ByoProbeFailure.Transport;
     }
 
     // A refusal: System.ClientModel's message is a bare "Service request failed." for any service but OpenAI's own, and

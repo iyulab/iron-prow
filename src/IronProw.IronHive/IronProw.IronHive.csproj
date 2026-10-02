@@ -10,6 +10,9 @@
     <ProjectReference Include="../IronProw.Core/IronProw.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="IronProw.IronHive.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- IronHive.Extensions.AI supplies ChatClientAdapter; it depends only on IronHive.Abstractions (no IronHive.Core stack) -->
     <PackageReference Include="IronHive.Extensions.AI" />
     <!-- Provider packages — supply IMessageGenerator implementations -->
