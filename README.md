@@ -92,20 +92,24 @@ services.AddIronProw()
 
 ```csharp
 var userKey = Environment.GetEnvironmentVariable("XAI_API_KEY");
-var endpoint = new ByoEndpoint("grok", BaseUrl: null, ApiKey: userKey);
+var gatewayHeaders = new Dictionary<string, string> { ["X-Gateway-Token"] = "…" };   // 없으면 생략
+var endpoint = new ByoEndpoint("grok", BaseUrl: null, ApiKey: userKey,
+    Headers: gatewayHeaders);                                          // 선택 — 게이트웨이 토큰 등, 프로브·채팅 둘 다에 실린다
 
 string? why = ByoPresets.Validate(endpoint);                          // 접속 없이 입력 규칙만 — null 이면 사용 가능
-ByoProbeResult probe = await ByoPresets.ProbeAsync(endpoint);         // 모델 목록 1회 — 실제 인증
-// probe.Ok / probe.ModelCount / probe.StatusCode(401 = 잘못된 키, 404 = 잘못된 경로) / probe.Error
+ByoProbeResult probe = await ByoPresets.ProbeAsync(endpoint);         // 모델 목록 요청 1회 — 실제 인증
+// probe.Ok / probe.ModelIds(서버 순서) / probe.ModelCount / probe.StatusCode(401 = 잘못된 키, 404 = 잘못된 경로) / probe.Error
+// probe.Lists("grok-4") — 서버가 그 모델을 내놓는가(보내기 전 «이 모델은 제공되지 않음» 경고용)
 
-if (why is null && probe.Ok)
+if (why is null && probe.Lists("grok-4"))
 {
     services.AddIronProw().AddIronHiveByo(id: "user-endpoint", priority: 30, modelId: "grok-4", endpoint);
 }
 ```
 
 - `ByoPresets.All` 은 앱이 UI 기본값·검증을 채우는 정본이다(표시 이름·문구는 앱 몫). 모르는 프리셋 id 는 조용히 OpenAI-호환으로 보내지 않고 `Validate` 가 거부한다.
-- `ProbeAsync` 는 각 provider 의 모델 파인더(`OpenAIModelFinder` · `AnthropicModelFinder` · `GoogleAIModelFinder`)로 한 번 인증 요청을 보낸다 — frontier 도 "무조건 연결됨" 이 아니다. 기본 제한시간 10초, 실패는 예외가 아니라 결과로 온다(취소만 예외).
+- `ProbeAsync` 는 각 provider 의 모델 파인더(`OpenAIModelFinder` · `AnthropicModelFinder` · `GoogleAIModelFinder`)로 한 번 인증 요청을 보낸다 — frontier 도 "무조건 연결됨" 이 아니다. **요청은 한 번**(SDK 재시도 끔 — 닿지 않는 호스트를 네 번 기다리지 않는다), 기본 제한시간 10초, 실패는 예외가 아니라 결과로 온다(취소만 예외). `Error` 는 원인을 말한다: provider 의 거부 메시지 · 연결 실패 · «No answer within N s.».
+- `Headers` 는 provider 의 `Headers` 설정으로 간다 — 자격증명을 싣는 이름(OpenAI 계열 `Authorization`, Anthropic `x-api-key` 등)은 `Validate` 가 provider 규칙대로 거부한다(키는 `ApiKey` 로).
 
 `UseFluxGuard()` (파라미터 없음) 는 Standard preset(L1 regex, offline)을 적용한다.  
 `UseFluxGuard(configure: b => …)` 는 Standard preset 위에 FluxGuard 빌더 설정을 더한다(예: `b.WithBlockThreshold(0.8)`). 이미 만든 FluxGuard 인스턴스를 주입하려면 `UseFluxGuard(IFluxGuard)` 오버로드를 사용한다. 다른 가드는 `UseGuard(sp => myGuard)` 로 `IGuard` 를 직접 꽂는다.  

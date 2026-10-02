@@ -5,6 +5,7 @@ using AwesomeAssertions;
 using IronHive.Providers.OpenAI.Compatible;
 using IronHive.Providers.OpenAI.Compatible.GpuStack;
 using IronProw.Core;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -94,7 +95,12 @@ public class ByoPresetsTests
         var ok = await ByoPresets.ProbeAsync(new ByoEndpoint("custom", server.BaseUrl, "good"), cancellationToken: Ct);
         var refused = await ByoPresets.ProbeAsync(new ByoEndpoint("custom", server.BaseUrl, "bad"), cancellationToken: Ct);
 
-        ok.Should().Be(new ByoProbeResult(true, 2, null, null));
+        ok.Ok.Should().BeTrue();
+        ok.ModelIds.Should().Equal("m1", "m2");
+        ok.ModelCount.Should().Be(2);
+        ok.Lists("m2").Should().BeTrue();
+        ok.Lists("m3").Should().BeFalse("a listed id is matched exactly");
+        (ok.StatusCode, ok.Error).Should().Be(((int?)null, (string?)null));
         server.Paths.Should().AllBe("/v1/models");
         refused.Ok.Should().BeFalse();
         refused.StatusCode.Should().Be(401);
@@ -117,7 +123,99 @@ public class ByoPresetsTests
     {
         var result = await ByoPresets.ProbeAsync(new ByoEndpoint("anthropic"), cancellationToken: Ct);
 
-        result.Should().Be(new ByoProbeResult(false, 0, null, "The 'anthropic' preset needs an API key."));
+        result.Ok.Should().BeFalse();
+        result.ModelIds.Should().BeEmpty();
+        result.Error.Should().Be("The 'anthropic' preset needs an API key.");
+    }
+
+    [Fact]
+    public async Task Probe_sends_one_request_to_a_failing_server_and_reports_its_status()
+    {
+        // The SDK would resend a 503 three times with backoff; a connection check answers once.
+        using var server = StubServer.Start(_ => (503, """{"error":{"message":"overloaded"}}"""));
+
+        var result = await ByoPresets.ProbeAsync(new ByoEndpoint("custom", server.BaseUrl), cancellationToken: Ct);
+
+        server.Paths.Should().ContainSingle();
+        result.Ok.Should().BeFalse();
+        result.StatusCode.Should().Be(503);
+        result.Error.Should().Contain("overloaded");
+    }
+
+    [Fact]
+    public async Task Probe_of_a_refused_connection_names_the_cause_promptly()
+    {
+        var port = FreePort();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+
+        var result = await ByoPresets.ProbeAsync(new ByoEndpoint("ollama", $"http://127.0.0.1:{port}"), cancellationToken: Ct);
+
+        clock.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3), "one attempt, not four with backoff");
+        result.Error.Should().NotContain("Retry failed").And.NotContain("tries");
+        result.StatusCode.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Probe_of_a_server_that_never_answers_reports_the_timeout()
+    {
+        using var silent = new TcpListener(IPAddress.Loopback, 0);
+        silent.Start();
+        var port = ((IPEndPoint)silent.LocalEndpoint).Port;
+
+        var result = await ByoPresets.ProbeAsync(
+            new ByoEndpoint("ollama", $"http://127.0.0.1:{port}"), TimeSpan.FromMilliseconds(500), Ct);
+
+        result.Ok.Should().BeFalse();
+        result.Error.Should().Be("No answer within 0.5 s.");
+    }
+
+    [Fact]
+    public async Task The_endpoints_headers_reach_the_server_on_the_probe_and_on_chat()
+    {
+        const string Completion = """
+            {"id":"c1","object":"chat.completion","created":0,"model":"m","choices":[{"index":0,"message":{"role":"assistant","content":"hi"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}
+            """;
+        var seen = new List<string?>();
+        using var server = StubServer.Start(request =>
+        {
+            lock (seen)
+            {
+                seen.Add(request.Headers["X-Gateway-Token"]);
+            }
+
+            return request.Url!.AbsolutePath.EndsWith("/models", StringComparison.Ordinal)
+                ? (200, """{"object":"list","data":[{"id":"m","object":"model","created":0,"owned_by":"x"}]}""")
+                : (200, Completion);
+        });
+        var endpoint = new ByoEndpoint("custom", server.BaseUrl, Headers: new Dictionary<string, string> { ["X-Gateway-Token"] = "gw-1" });
+
+        var probe = await ByoPresets.ProbeAsync(endpoint, cancellationToken: Ct);
+
+        var services = new ServiceCollection();
+        services.AddIronProw().AddIronHiveByo("gw", 1, "m", endpoint);
+        await using var provider = services.BuildServiceProvider();
+        var registration = provider.GetRequiredService<IProviderRegistry>().GetOrdered().Single();
+        var reply = await registration.ClientFactory(provider).GetResponseAsync("hello", cancellationToken: Ct);
+
+        probe.Lists("m").Should().BeTrue();
+        reply.Text.Should().Be("hi");
+        server.Paths.Should().Equal("/v1/models", "/v1/chat/completions");
+        seen.Should().Equal("gw-1", "gw-1");
+    }
+
+    [Theory]
+    [InlineData("custom", "Authorization")]
+    [InlineData("anthropic", "x-api-key")]
+    public void A_header_that_carries_the_credential_is_refused_without_contacting_anything(string preset, string header)
+    {
+        var endpoint = new ByoEndpoint(preset, preset == "custom" ? "http://127.0.0.1:9" : null, "k",
+            new Dictionary<string, string> { [header] = "secret" });
+
+        var error = ByoPresets.Validate(endpoint);
+        var register = () => new ServiceCollection().AddIronProw().AddIronHiveByo("x", 1, "m", endpoint);
+
+        error.Should().Contain(header);
+        register.Should().Throw<ArgumentException>().WithMessage($"*{header}*");
     }
 
     private static int FreePort()

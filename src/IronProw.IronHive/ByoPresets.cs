@@ -49,14 +49,35 @@ public sealed record ByoPreset(string Id, ProviderKind Kind, ByoWire Wire, strin
 /// <param name="Preset">A <see cref="ByoPreset.Id"/>.</param>
 /// <param name="BaseUrl">The base URL, or null/empty for the preset's default.</param>
 /// <param name="ApiKey">The API key, or null/empty for none.</param>
-public sealed record ByoEndpoint(string Preset, string? BaseUrl = null, string? ApiKey = null);
+/// <param name="Headers">
+/// Extra request headers (a gateway's own token, a routing header), sent by the gateway registration and by
+/// <see cref="ByoPresets.ProbeAsync"/> alike, through the provider's <c>Headers</c> setting. The credential is not a
+/// header: a header the provider reserves for the key is refused (<see cref="ByoPresets.Validate"/> says which).
+/// </param>
+public sealed record ByoEndpoint(
+    string Preset,
+    string? BaseUrl = null,
+    string? ApiKey = null,
+    IReadOnlyDictionary<string, string>? Headers = null);
 
 /// <summary>The outcome of <see cref="ByoPresets.ProbeAsync"/>.</summary>
 /// <param name="Ok">The endpoint answered an authenticated model-list request.</param>
-/// <param name="ModelCount">How many models it listed (0 when not <see cref="Ok"/>).</param>
+/// <param name="ModelIds">The ids of the models it listed, in the server's order (empty when not <see cref="Ok"/>).</param>
 /// <param name="StatusCode">The HTTP status of a refusal, when the provider reported one (401 = bad key, 404 = wrong path).</param>
 /// <param name="Error">Why it failed, or null when <see cref="Ok"/>.</param>
-public sealed record ByoProbeResult(bool Ok, int ModelCount, int? StatusCode, string? Error);
+public sealed record ByoProbeResult(bool Ok, IReadOnlyList<string> ModelIds, int? StatusCode, string? Error)
+{
+    /// <summary>How many models it listed (0 when not <see cref="Ok"/>).</summary>
+    public int ModelCount => ModelIds.Count;
+
+    /// <summary>
+    /// True when the endpoint answered and listed <paramref name="modelId"/> (ordinal comparison) - the check an
+    /// application makes before sending a request to a model the server does not serve.
+    /// </summary>
+    public bool Lists(string modelId) => Ok && ModelIds.Contains(modelId, StringComparer.Ordinal);
+
+    internal static ByoProbeResult Failed(int? statusCode, string error) => new(false, [], statusCode, error);
+}
 
 /// <summary>
 /// The catalogue of bring-your-own endpoint presets, with the three things an application needs for each: the rules
@@ -102,12 +123,38 @@ public static class ByoPresets
 
     /// <summary>
     /// Checks what the user entered, without contacting anything: a known preset, a base URL that is absolute
-    /// <c>http</c>/<c>https</c> when given (and given when the preset has no default), and a key when the preset needs one.
+    /// <c>http</c>/<c>https</c> when given (and given when the preset has no default), a key when the preset needs one,
+    /// and headers the provider accepts (no empty name, none of the names it reserves for the key).
     /// </summary>
     /// <returns>Why the endpoint cannot be used, or null when it can.</returns>
     public static string? Validate(ByoEndpoint endpoint)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
+        if (ValidateEntry(endpoint) is { } invalid)
+        {
+            return invalid;
+        }
+
+        if (endpoint.Headers is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        // The header rules are the provider's (IronHive refuses the names that carry its credential, which differ per
+        // provider); building the client applies them without sending anything.
+        try
+        {
+            using var finder = CreateModelFinder(endpoint, Find(endpoint.Preset)!);
+            return null;
+        }
+        catch (ArgumentException refused)
+        {
+            return refused.Message;
+        }
+    }
+
+    private static string? ValidateEntry(ByoEndpoint endpoint)
+    {
 
         if (Find(endpoint.Preset) is not { } preset)
         {
@@ -144,24 +191,31 @@ public static class ByoPresets
     {
         ArgumentNullException.ThrowIfNull(builder);
         var preset = Require(endpoint);
-        var baseUrl = BaseUrlOf(endpoint);
-        var apiKey = string.IsNullOrWhiteSpace(endpoint.ApiKey) ? null : endpoint.ApiKey.Trim();
+        var entered = Entered.Of(endpoint);
 
         return preset.Wire switch
         {
-            ByoWire.OpenAI => builder.AddIronHiveOpenAI(id, priority, modelId, c => ConfigureOpenAI(c, baseUrl, apiKey)),
-            ByoWire.Anthropic => builder.AddIronHiveAnthropic(id, priority, modelId, c => ConfigureAnthropic(c, baseUrl, apiKey)),
-            ByoWire.GoogleAI => builder.AddIronHiveGoogleAI(id, priority, modelId, c => ConfigureGoogleAI(c, baseUrl, apiKey)),
-            ByoWire.GpuStack => builder.AddIronHiveGpuStack(id, priority, modelId, c => ConfigureGpuStack(c, baseUrl, apiKey)),
-            _ => AddCompatible(builder, preset, id, priority, modelId, baseUrl, apiKey),
+            ByoWire.OpenAI => builder.AddIronHiveOpenAI(id, priority, modelId, c => ConfigureOpenAI(c, entered)),
+            ByoWire.Anthropic => builder.AddIronHiveAnthropic(id, priority, modelId, c => ConfigureAnthropic(c, entered)),
+            ByoWire.GoogleAI => builder.AddIronHiveGoogleAI(id, priority, modelId, c => ConfigureGoogleAI(c, entered)),
+            ByoWire.GpuStack => builder.AddIronHiveGpuStack(id, priority, modelId, c => ConfigureGpuStack(c, entered)),
+            _ => AddCompatible(builder, preset, id, priority, modelId, entered),
         };
     }
 
     /// <summary>
     /// Checks the endpoint for real: one model-list request through the provider's own model finder, authenticated
-    /// with the key. A wrong key, a wrong address or a server that is down all come back as not <see cref="ByoProbeResult.Ok"/>,
-    /// with the HTTP status when the provider reported one. An endpoint that fails <see cref="Validate"/> is not contacted.
+    /// with the key and carrying the endpoint's headers. A wrong key, a wrong address or a server that is down all come
+    /// back as not <see cref="ByoProbeResult.Ok"/>, with the HTTP status when the provider reported one; a reachable
+    /// endpoint comes back with the ids it lists (<see cref="ByoProbeResult.Lists"/>). An endpoint that fails
+    /// <see cref="Validate"/> is not contacted.
     /// </summary>
+    /// <remarks>
+    /// One request, not the SDK's retry loop: a connection check answers what the endpoint does now, and retrying an
+    /// unreachable host only multiplies the wait (four attempts and their backoff, then a message about the retries
+    /// instead of the cause). <see cref="ByoProbeResult.Error"/> names the cause - the provider's refusal with its
+    /// message, the connection failure, or the timeout.
+    /// </remarks>
     /// <param name="endpoint">What the user entered.</param>
     /// <param name="timeout">How long to wait for the answer. Default: 10 seconds.</param>
     /// <param name="cancellationToken">Cancels the check; cancellation is thrown, not reported as a failure.</param>
@@ -170,29 +224,31 @@ public static class ByoPresets
         ArgumentNullException.ThrowIfNull(endpoint);
         if (Validate(endpoint) is { } invalid)
         {
-            return new ByoProbeResult(false, 0, null, invalid);
+            return ByoProbeResult.Failed(null, invalid);
         }
 
+        var budget = timeout ?? TimeSpan.FromSeconds(10);
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutSource.CancelAfter(timeout ?? TimeSpan.FromSeconds(10));
+        timeoutSource.CancelAfter(budget);
         try
         {
-            using var finder = CreateModelFinder(endpoint);
+            using var finder = CreateModelFinder(endpoint, Find(endpoint.Preset)!, probe: true);
             var models = await finder.ListModelsAsync(timeoutSource.Token).ConfigureAwait(false);
-            return new ByoProbeResult(true, models.Count(), null, null);
+            return new ByoProbeResult(true, [.. models.Select(m => m.ModelId)], null, null);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (Exception) when (timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
-            return new ByoProbeResult(false, 0, null, $"No answer within {(timeout ?? TimeSpan.FromSeconds(10)).TotalSeconds:0.#} s.");
+            return ByoProbeResult.Failed(null, $"No answer within {budget.TotalSeconds:0.#} s.");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
-            return new ByoProbeResult(false, 0, StatusOf(ex), ErrorOf(ex));
+            return ByoProbeResult.Failed(StatusOf(ex), ErrorOf(ex));
         }
     }
 
-    // System.ClientModel's message is a bare "Service request failed." for any service but OpenAI's own; the response
-    // body is where an OpenAI-compatible server (xAI, a proxy) says what was wrong.
+    // A refusal: System.ClientModel's message is a bare "Service request failed." for any service but OpenAI's own, and
+    // the response body is where an OpenAI-compatible server (xAI, a proxy) says what was wrong. Anything else (no
+    // connection, a connect timeout): the innermost exception names the cause; the outer ones only wrap it.
     private static string ErrorOf(Exception exception)
     {
         if (exception is ClientResultException result && result.GetRawResponse()?.Content?.ToString() is { Length: > 0 } body)
@@ -201,35 +257,51 @@ public static class ByoPresets
             return $"{headline} {System.Text.RegularExpressions.Regex.Replace(body.Trim(), @"\s+", " ")}";
         }
 
-        return exception.Message;
+        if (StatusOf(exception) is not null)
+        {
+            return exception.Message;
+        }
+
+        var cause = exception;
+        while (cause.InnerException is { } inner)
+        {
+            cause = inner;
+        }
+
+        return cause.Message;
     }
 
-    internal static IModelFinder CreateModelFinder(ByoEndpoint endpoint)
+    internal static IModelFinder CreateModelFinder(ByoEndpoint endpoint) =>
+        CreateModelFinder(endpoint, Require(endpoint));
+
+    // probe: one request - the SDK's retries off (see ProbeAsync).
+    private static IModelFinder CreateModelFinder(ByoEndpoint endpoint, ByoPreset preset, bool probe = false)
     {
-        var preset = Require(endpoint);
-        var baseUrl = BaseUrlOf(endpoint);
-        var apiKey = string.IsNullOrWhiteSpace(endpoint.ApiKey) ? null : endpoint.ApiKey.Trim();
+        var entered = Entered.Of(endpoint);
+        int? maxRetries = probe ? 0 : null;
 
         switch (preset.Wire)
         {
             case ByoWire.OpenAI:
-                var openAI = new OpenAIConfig();
-                ConfigureOpenAI(openAI, baseUrl, apiKey);
+                var openAI = new OpenAIConfig { MaxRetries = maxRetries };
+                ConfigureOpenAI(openAI, entered);
                 return new OpenAIModelFinder(openAI);
             case ByoWire.Anthropic:
-                var anthropic = new AnthropicConfig();
-                ConfigureAnthropic(anthropic, baseUrl, apiKey);
+                var anthropic = new AnthropicConfig { MaxRetries = maxRetries };
+                ConfigureAnthropic(anthropic, entered);
                 return new AnthropicModelFinder(anthropic);
             case ByoWire.GoogleAI:
                 var google = new GoogleAIConfig();
-                ConfigureGoogleAI(google, baseUrl, apiKey);
+                ConfigureGoogleAI(google, entered, probe ? new Google.GenAI.Types.HttpRetryOptions { Attempts = 1 } : null);
                 return new GoogleAIModelFinder(google);
             case ByoWire.GpuStack:
-                var gpuStack = new GpuStackConfig();
-                ConfigureGpuStack(gpuStack, baseUrl, apiKey);
+                var gpuStack = new GpuStackConfig { MaxRetries = maxRetries };
+                ConfigureGpuStack(gpuStack, entered);
                 return new OpenAIModelFinder(gpuStack.ToOpenAICompatible().ToOpenAI());
             default:
-                return new OpenAIModelFinder(CompatibleConfig(preset, baseUrl, apiKey).ToOpenAI());
+                var compatible = CompatibleConfig(preset, entered);
+                compatible.MaxRetries = maxRetries;
+                return new OpenAIModelFinder(compatible.ToOpenAI());
         }
     }
 
@@ -244,50 +316,65 @@ public static class ByoPresets
         return Find(endpoint.Preset)!;
     }
 
-    // Null keeps the provider's own default (the SDK's for frontier providers) instead of restating it.
-    private static string? BaseUrlOf(ByoEndpoint endpoint) =>
-        string.IsNullOrWhiteSpace(endpoint.BaseUrl) ? null : endpoint.BaseUrl.Trim();
-
-    private static void ConfigureOpenAI(OpenAIConfig config, string? baseUrl, string? apiKey)
+    /// <summary>What the user entered, normalized: blank becomes null (the provider's own default, not a restatement of it).</summary>
+    private sealed record Entered(string? BaseUrl, string? ApiKey, Dictionary<string, string>? Headers)
     {
-        if (baseUrl is not null) config.BaseUrl = baseUrl;
-        config.ApiKey = apiKey ?? string.Empty;
+        public static Entered Of(ByoEndpoint endpoint) => new(
+            string.IsNullOrWhiteSpace(endpoint.BaseUrl) ? null : endpoint.BaseUrl.Trim(),
+            string.IsNullOrWhiteSpace(endpoint.ApiKey) ? null : endpoint.ApiKey.Trim(),
+            endpoint.Headers is { Count: > 0 } headers ? new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase) : null);
     }
 
-    private static void ConfigureAnthropic(AnthropicConfig config, string? baseUrl, string? apiKey)
+    private static void ConfigureOpenAI(OpenAIConfig config, Entered entered)
     {
-        if (baseUrl is not null) config.BaseUrl = baseUrl;
-        config.ApiKey = apiKey;
+        if (entered.BaseUrl is not null) config.BaseUrl = entered.BaseUrl;
+        config.ApiKey = entered.ApiKey ?? string.Empty;
+        config.Headers = entered.Headers;
     }
 
-    private static void ConfigureGoogleAI(GoogleAIConfig config, string? baseUrl, string? apiKey)
+    private static void ConfigureAnthropic(AnthropicConfig config, Entered entered)
     {
-        if (baseUrl is not null) config.HttpOptions = new Google.GenAI.Types.HttpOptions { BaseUrl = baseUrl };
-        config.ApiKey = apiKey;
+        if (entered.BaseUrl is not null) config.BaseUrl = entered.BaseUrl;
+        config.ApiKey = entered.ApiKey;
+        config.Headers = entered.Headers;
     }
 
-    private static void ConfigureGpuStack(GpuStackConfig config, string? baseUrl, string? apiKey)
+    private static void ConfigureGoogleAI(GoogleAIConfig config, Entered entered, Google.GenAI.Types.HttpRetryOptions? retry = null)
     {
-        if (baseUrl is not null) config.BaseUrl = baseUrl;
-        config.ApiKey = apiKey;
+        if (entered.BaseUrl is not null || retry is not null)
+        {
+            config.HttpOptions = new Google.GenAI.Types.HttpOptions { BaseUrl = entered.BaseUrl, RetryOptions = retry };
+        }
+
+        config.ApiKey = entered.ApiKey;
+        config.Headers = entered.Headers;
     }
 
-    private static OpenAICompatibleConfig CompatibleConfig(ByoPreset preset, string? baseUrl, string? apiKey) => new()
+    private static void ConfigureGpuStack(GpuStackConfig config, Entered entered)
+    {
+        if (entered.BaseUrl is not null) config.BaseUrl = entered.BaseUrl;
+        config.ApiKey = entered.ApiKey;
+        config.Headers = entered.Headers;
+    }
+
+    private static OpenAICompatibleConfig CompatibleConfig(ByoPreset preset, Entered entered) => new()
     {
         // Grok's default carries its own /v1; the compatible provider appends /v1 idempotently, so either form works.
-        BaseUrl = baseUrl ?? preset.DefaultBaseUrl,
-        ApiKey = apiKey,
+        BaseUrl = entered.BaseUrl ?? preset.DefaultBaseUrl,
+        ApiKey = entered.ApiKey,
+        Headers = entered.Headers,
     };
 
     private static IronProwBuilder AddCompatible(
-        IronProwBuilder builder, ByoPreset preset, string id, int priority, string modelId, string? baseUrl, string? apiKey)
+        IronProwBuilder builder, ByoPreset preset, string id, int priority, string modelId, Entered entered)
     {
         if (preset.Kind == ProviderKind.Lan)
         {
             return builder.AddIronHiveOpenAICompatible(id, priority, modelId, c =>
             {
-                c.BaseUrl = baseUrl ?? preset.DefaultBaseUrl;
-                c.ApiKey = apiKey;
+                c.BaseUrl = entered.BaseUrl ?? preset.DefaultBaseUrl;
+                c.ApiKey = entered.ApiKey;
+                c.Headers = entered.Headers;
             });
         }
 
@@ -295,7 +382,7 @@ public static class ByoPresets
         builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IHttpFailureReader, IronHiveHttpFailureReader>());
         return builder.AddProvider(id, preset.Kind, priority, _ =>
         {
-            var generator = new OpenAICompatibleMessageGenerator(CompatibleConfig(preset, baseUrl, apiKey));
+            var generator = new OpenAICompatibleMessageGenerator(CompatibleConfig(preset, entered));
             return new global::IronHive.Extensions.AI.ChatClientAdapter(generator, modelId, preset.Id);
         });
     }

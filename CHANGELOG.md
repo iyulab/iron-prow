@@ -4,7 +4,23 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [0.11.1] - Unreleased
+## [0.12.0] - Unreleased
+
+### Added
+- **`ByoPresets.ProbeAsync` returns the ids the endpoint lists.** `ByoProbeResult.ModelIds` (server order) and
+  `ByoProbeResult.Lists(modelId)` — an app can warn "the server is up but does not serve this model" before a request
+  fails. `ModelCount` remains (now `ModelIds.Count`).
+- **`ByoEndpoint.Headers`: extra request headers** (a gateway's own token, a routing header), sent by both
+  `AddIronHiveByo` and `ProbeAsync` through the provider's `Headers` setting. A header the provider reserves for the
+  credential (`Authorization`; for Anthropic also `x-api-key`) is refused by `Validate`, without contacting anything.
+
+### Changed
+- **`ProbeAsync` sends one request.** The SDK's retries are off for the check (`MaxRetries = 0`, Google
+  `Attempts = 1`), so an unreachable host answers after one attempt instead of four with backoff (about 8.6 s with a
+  2 s connect timeout), and `Error` names the cause (the refusal with its message, the connection failure, or
+  "No answer within N s.") instead of "Retry failed after 4 tries". Requires IronHive 0.46.0.
+- **Breaking**: `ByoProbeResult`'s second positional parameter is `IReadOnlyList<string> ModelIds` instead of
+  `int ModelCount`. Code that reads `ModelCount` is unaffected; code that constructs or deconstructs the record changes.
 
 ### Fixed
 - **Packages now carry the license text.** Each `.nupkg` includes `LICENSE` next to the `MIT` expression,
