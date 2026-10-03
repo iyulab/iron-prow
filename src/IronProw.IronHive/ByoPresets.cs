@@ -1,4 +1,5 @@
 using System.ClientModel;
+using IronHive.Abstractions.Http;
 using IronHive.Abstractions.Models;
 using IronHive.Providers.Anthropic;
 using IronHive.Providers.GoogleAI;
@@ -54,11 +55,20 @@ public sealed record ByoPreset(string Id, ProviderKind Kind, ByoWire Wire, strin
 /// <see cref="ByoPresets.ProbeAsync"/> alike, through the provider's <c>Headers</c> setting. The credential is not a
 /// header: a header the provider reserves for the key is refused (<see cref="ByoPresets.Validate"/> says which).
 /// </param>
+/// <param name="ApiKeyPlacement">
+/// Where and how <paramref name="ApiKey"/> is sent, for a gateway that wants something other than
+/// <c>Authorization: Bearer &lt;key&gt;</c> — <c>CredentialPlacement.Authorization("Basic")</c>, a bare
+/// <c>CredentialPlacement.Authorization(null)</c>, or <c>CredentialPlacement.InHeader("api-key")</c>. Null is the
+/// provider's default (Bearer). Applies to the OpenAI-wire presets (OpenAI, Grok, Ollama, GPUStack, custom); the
+/// Anthropic and Gemini presets send their vendor's own header and refuse a placement. Registration and
+/// <see cref="ByoPresets.ProbeAsync"/> send the same form.
+/// </param>
 public sealed record ByoEndpoint(
     string Preset,
     string? BaseUrl = null,
     string? ApiKey = null,
-    IReadOnlyDictionary<string, string>? Headers = null);
+    IReadOnlyDictionary<string, string>? Headers = null,
+    CredentialPlacement? ApiKeyPlacement = null);
 
 /// <summary>Why <see cref="ByoPresets.ProbeAsync"/> failed, for an application that words the failure itself.</summary>
 public enum ByoProbeFailure
@@ -212,6 +222,11 @@ public static class ByoPresets
         if (preset.ApiKeyRequired && string.IsNullOrWhiteSpace(endpoint.ApiKey))
         {
             return $"The '{preset.Id}' preset needs an API key.";
+        }
+
+        if (endpoint.ApiKeyPlacement is not null && preset.Wire is ByoWire.Anthropic or ByoWire.GoogleAI)
+        {
+            return $"The '{preset.Id}' preset sends its key in its vendor's own header; an API key placement applies to the OpenAI-wire presets only.";
         }
 
         return null;
@@ -392,12 +407,13 @@ public static class ByoPresets
     }
 
     /// <summary>What the user entered, normalized: blank becomes null (the provider's own default, not a restatement of it).</summary>
-    private sealed record Entered(string? BaseUrl, string? ApiKey, Dictionary<string, string>? Headers)
+    private sealed record Entered(string? BaseUrl, string? ApiKey, Dictionary<string, string>? Headers, CredentialPlacement Placement)
     {
         public static Entered Of(ByoEndpoint endpoint) => new(
             string.IsNullOrWhiteSpace(endpoint.BaseUrl) ? null : endpoint.BaseUrl.Trim(),
             string.IsNullOrWhiteSpace(endpoint.ApiKey) ? null : endpoint.ApiKey.Trim(),
-            endpoint.Headers is { Count: > 0 } headers ? new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase) : null);
+            endpoint.Headers is { Count: > 0 } headers ? new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase) : null,
+            endpoint.ApiKeyPlacement ?? CredentialPlacement.Bearer);
     }
 
     private static void ConfigureOpenAI(OpenAIConfig config, Entered entered)
@@ -405,6 +421,7 @@ public static class ByoPresets
         if (entered.BaseUrl is not null) config.BaseUrl = entered.BaseUrl;
         config.ApiKey = entered.ApiKey ?? string.Empty;
         config.Headers = entered.Headers;
+        config.ApiKeyPlacement = entered.Placement;
     }
 
     private static void ConfigureAnthropic(AnthropicConfig config, Entered entered)
@@ -430,6 +447,7 @@ public static class ByoPresets
         if (entered.BaseUrl is not null) config.BaseUrl = entered.BaseUrl;
         config.ApiKey = entered.ApiKey;
         config.Headers = entered.Headers;
+        config.ApiKeyPlacement = entered.Placement;
     }
 
     private static OpenAICompatibleConfig CompatibleConfig(ByoPreset preset, Entered entered) => new()
@@ -438,6 +456,7 @@ public static class ByoPresets
         BaseUrl = entered.BaseUrl ?? preset.DefaultBaseUrl,
         ApiKey = entered.ApiKey,
         Headers = entered.Headers,
+        ApiKeyPlacement = entered.Placement,
     };
 
     private static IronProwBuilder AddCompatible(
@@ -450,6 +469,7 @@ public static class ByoPresets
                 c.BaseUrl = entered.BaseUrl ?? preset.DefaultBaseUrl;
                 c.ApiKey = entered.ApiKey;
                 c.Headers = entered.Headers;
+                c.ApiKeyPlacement = entered.Placement;
             });
         }
 

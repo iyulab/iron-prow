@@ -109,6 +109,7 @@ if (why is null && probe.Lists("grok-4"))
 
 - `ByoPresets.All` 은 앱이 UI 기본값·검증을 채우는 정본이다(표시 이름·문구는 앱 몫). 모르는 프리셋 id 는 조용히 OpenAI-호환으로 보내지 않고 `Validate` 가 거부한다.
 - `ProbeAsync` 는 각 provider 의 모델 파인더(`OpenAIModelFinder` · `AnthropicModelFinder` · `GoogleAIModelFinder`)로 한 번 인증 요청을 보낸다 — frontier 도 "무조건 연결됨" 이 아니다. **요청은 한 번**(SDK 재시도 끔 — 닿지 않는 호스트를 네 번 기다리지 않는다), 기본 제한시간 10초, 실패는 예외가 아니라 결과로 온다(취소만 예외). `Error` 는 원인을 말한다: provider 의 거부 메시지 · 연결 실패 · «No answer within N s.». 다만 그 문장은 OS·SDK 의 것이라 지역화되고 주소나 provider 상세를 담을 수 있다 — 앱이 자기 말로 안내하려면 **`Failure`**(`ByoProbeFailure`: `Unauthorized` · `HttpStatus` · `Timeout` · `Refused` · `HostNotFound` · `Unreachable` · `Transport` · `Invalid`)로 분류한다. 거부된 연결은 어느 wire 에서든 `Refused` 다.
+- `ApiKeyPlacement` 는 `ApiKey` 를 보낼 형태다 — 게이트웨이가 `Authorization: Bearer` 가 아닌 것을 요구하면 `CredentialPlacement.Authorization("Basic")`(키는 인코딩된 `user:password`) · `.Authorization(null)`(scheme 없는 토큰) · `.InHeader("api-key")`. null 이면 Bearer. OpenAI 와이어 프리셋(openai · grok · ollama · gpustack · custom)에 적용되고, 등록과 `ProbeAsync` 가 같은 형태로 보낸다. anthropic · gemini 는 벤더 헤더를 쓰므로 `Validate` 가 거부한다.
 - `Headers` 는 provider 의 `Headers` 설정으로 간다 — 자격증명을 싣는 이름(OpenAI 계열 `Authorization`, Anthropic `x-api-key` 등)은 `Validate` 가 provider 규칙대로 거부한다(키는 `ApiKey` 로).
 
 `UseFluxGuard()` (파라미터 없음) 는 Standard preset(L1 regex, offline)을 적용한다.  

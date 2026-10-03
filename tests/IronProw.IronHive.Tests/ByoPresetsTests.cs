@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using AwesomeAssertions;
+using IronHive.Abstractions.Http;
 using IronHive.Providers.OpenAI.Compatible;
 using IronHive.Providers.OpenAI.Compatible.GpuStack;
 using IronProw.Core;
@@ -256,6 +257,90 @@ public class ByoPresetsTests
         reply.Text.Should().Be("hi");
         server.Paths.Should().Equal("/v1/models", "/v1/chat/completions");
         seen.Should().Equal("gw-1", "gw-1");
+    }
+
+    [Theory]
+    [InlineData("basic", "Authorization", "Basic dXNlcjpwYXNz")]
+    [InlineData("bare", "Authorization", "dXNlcjpwYXNz")]
+    [InlineData("api-key", "api-key", "dXNlcjpwYXNz")]
+    public async Task The_key_reaches_the_server_in_the_placed_form_on_the_probe_and_on_chat(string name, string header, string value)
+    {
+        const string Completion = """
+            {"id":"c1","object":"chat.completion","created":0,"model":"m","choices":[{"index":0,"message":{"role":"assistant","content":"hi"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}
+            """;
+        var placement = name switch
+        {
+            "basic" => CredentialPlacement.Authorization("Basic"),
+            "bare" => CredentialPlacement.Authorization(null),
+            _ => CredentialPlacement.InHeader("api-key"),
+        };
+        var seen = new List<(string? Placed, string? Authorization)>();
+        using var server = StubServer.Start(request =>
+        {
+            lock (seen)
+            {
+                seen.Add((request.Headers[header], request.Headers["Authorization"]));
+            }
+
+            // The gateway refuses anything but its own form, as the real ones do.
+            if (request.Headers[header] != value)
+                return (401, """{"error":{"message":"unauthorized","type":"invalid_request_error"}}""");
+
+            return request.Url!.AbsolutePath.EndsWith("/models", StringComparison.Ordinal)
+                ? (200, """{"object":"list","data":[{"id":"m","object":"model","created":0,"owned_by":"x"}]}""")
+                : (200, Completion);
+        });
+        var endpoint = new ByoEndpoint("custom", server.BaseUrl, "dXNlcjpwYXNz", ApiKeyPlacement: placement);
+
+        var probe = await ByoPresets.ProbeAsync(endpoint, cancellationToken: Ct);
+
+        var services = new ServiceCollection();
+        services.AddIronProw().AddIronHiveByo("gw", 1, "m", endpoint);
+        await using var provider = services.BuildServiceProvider();
+        var registration = provider.GetRequiredService<IProviderRegistry>().GetOrdered().Single();
+        var reply = await registration.ClientFactory(provider).GetResponseAsync("hello", cancellationToken: Ct);
+
+        probe.Ok.Should().BeTrue();
+        probe.Lists("m").Should().BeTrue();
+        reply.Text.Should().Be("hi");
+        server.Paths.Should().Equal("/v1/models", "/v1/chat/completions");
+        seen.Select(s => s.Placed).Should().Equal(value, value);
+        if (header != "Authorization")
+            seen.Select(s => s.Authorization).Should().AllSatisfy(a => a.Should().BeNull("the key is not also sent as a bearer"));
+    }
+
+    [Fact]
+    public async Task The_gpustack_preset_carries_the_placement_to_the_probe()
+    {
+        using var server = StubServer.Start(request =>
+            request.Headers["api-key"] == "k"
+                ? (200, """{"object":"list","data":[{"id":"m","object":"model","created":0,"owned_by":"x"}]}""")
+                : (401, """{"error":{"message":"unauthorized","type":"invalid_request_error"}}"""));
+
+        var probe = await ByoPresets.ProbeAsync(
+            new ByoEndpoint("gpustack", server.BaseUrl, "k", ApiKeyPlacement: CredentialPlacement.InHeader("api-key")),
+            cancellationToken: Ct);
+
+        probe.Ok.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("anthropic")]
+    [InlineData("gemini")]
+    public void A_placement_on_a_vendor_header_preset_is_refused(string preset)
+    {
+        var endpoint = new ByoEndpoint(preset, ApiKey: "k", ApiKeyPlacement: CredentialPlacement.InHeader("api-key"));
+
+        ByoPresets.Validate(endpoint).Should().Contain("OpenAI-wire");
+    }
+
+    [Fact]
+    public void A_header_named_like_the_placement_is_refused()
+    {
+        var endpoint = new ByoEndpoint("custom", "http://127.0.0.1:9", "k",
+            new Dictionary<string, string> { ["api-key"] = "secret" }, CredentialPlacement.InHeader("api-key"));
+
+        ByoPresets.Validate(endpoint).Should().Contain("api-key");
     }
 
     [Theory]

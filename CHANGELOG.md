@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.14.0] - Unreleased
+
+### Added
+- **`ByoEndpoint.ApiKeyPlacement`: a bring-your-own endpoint behind a gateway that wants `Authorization: Basic <key>`, a
+  bare `Authorization: <key>`, or the key in its own header (`api-key`) is registered and probed with that form.**
+  Registration (`AddIronHiveByo`) and `ProbeAsync` send the same form; a key placed in another header is not also sent
+  as a bearer. Applies to the OpenAI-wire presets; `Validate` refuses a placement on the Anthropic and Gemini presets, and
+  a `Headers` entry named like the placement's header.
+
+### Dependencies
+- IronHive 0.49.0 -> 0.50.0 (`CredentialPlacement`).
+
 ## [0.13.8] - 2026-10-04
 
 ### Changed
