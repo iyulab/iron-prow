@@ -6,6 +6,9 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 
 ## [0.14.0] - Unreleased
 
+### Changed
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.103.0 -> 0.104.0.
+
 ### Added
 - **`ByoEndpoint.ApiKeyPlacement`: a bring-your-own endpoint behind a gateway that wants `Authorization: Basic <key>`, a
   bare `Authorization: <key>`, or the key in its own header (`api-key`) is registered and probed with that form.**
