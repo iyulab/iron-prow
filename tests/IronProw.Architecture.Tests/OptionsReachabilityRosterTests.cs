@@ -11,7 +11,7 @@ namespace IronProw.Architecture.Tests;
 /// </summary>
 public class OptionsReachabilityRosterTests
 {
-    private static readonly Assembly[] Libraries =
+    internal static readonly Assembly[] Libraries =
     [
         // Every assembly this repository ships. An option declared in one and read in another only counts as
         // read when both are scanned, which is why this lives in the one test project that references them all.
