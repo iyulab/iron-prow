@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [0.14.0] - Unreleased
+## [0.14.0] - 2026-10-04
 
 ### Changed
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.103.0 -> 0.104.0.
