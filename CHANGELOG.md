@@ -6,6 +6,9 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 
 ## [0.15.3] - Unreleased
 
+### Changed
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.53.0 -> 0.53.1, `IronHive.Providers.Anthropic` 0.53.0 -> 0.53.1, `IronHive.Providers.GoogleAI` 0.53.0 -> 0.53.1, `IronHive.Providers.OpenAI` 0.53.0 -> 0.53.1, `IronHive.Providers.OpenAI.Compatible` 0.53.0 -> 0.53.1, `LMSupply.Generator` 0.106.0 -> 0.106.1.
+
 ### Fixed
 - **Cancelling a call now cancels it.** 2 method(s) that take a `CancellationToken` caught every exception to
   return a fallback (`null`, an empty result, a failure value) or to log and continue, and treated the caller's own
