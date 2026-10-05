@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.15.3] - Unreleased
+
+### Fixed
+- **Cancelling a call now cancels it.** 2 method(s) that take a `CancellationToken` caught every exception to
+  return a fallback (`null`, an empty result, a failure value) or to log and continue, and treated the caller's own
+  cancellation the same way. They now let the caller's `OperationCanceledException` through; other failures behave
+  as before. The resilience client no longer retries the caller's own cancellation even when a replaced error classifier calls it retryable.
+
 ## [0.15.2] - 2026-10-05
 
 ### Changed

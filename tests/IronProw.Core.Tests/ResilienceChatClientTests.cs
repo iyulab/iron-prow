@@ -51,6 +51,23 @@ public class ResilienceChatClientTests
         await inner.Received(1).GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>());
     }
 
+    // A classifier is replaceable; one that calls every failure retryable must still not retry the caller's own cancellation.
+    [Fact]
+    public async Task Does_not_retry_the_callers_cancellation_even_when_the_classifier_says_retryable()
+    {
+        using var cts = new CancellationTokenSource();
+        var inner = Substitute.For<IChatClient>();
+        inner.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns<Task<ChatResponse>>(_ => { cts.Cancel(); throw new OperationCanceledException(cts.Token); });
+        var everythingRetryable = Substitute.For<IErrorClassifier>();
+        everythingRetryable.Classify(Arg.Any<Exception>()).Returns(ErrorClassification.Retryable);
+
+        var sut = new ResilienceChatClient(inner, everythingRetryable, Fast());
+        await sut.Invoking(s => s.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: cts.Token))
+            .Should().ThrowAsync<OperationCanceledException>();
+        await inner.Received(1).GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>());
+    }
+
     // --- Streaming: first-chunk resilience (mirror of the non-streaming retry contract) ---
 
     [Fact]

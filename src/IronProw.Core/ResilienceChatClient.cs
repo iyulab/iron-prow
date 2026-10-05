@@ -49,7 +49,7 @@ public sealed class ResilienceChatClient(
             {
                 return await base.GetResponseAsync(list, options, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ShouldRetry(ex, attempt, out var delay))
+            catch (Exception ex) when ((ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested) && (ShouldRetry(ex, attempt, out var delay)))
             {
                 _onRetry?.Invoke(attempt, ex);
                 if (delay > TimeSpan.Zero)
@@ -81,7 +81,7 @@ public sealed class ResilienceChatClient(
                 // Only failures before the first chunk are retryable — once yielded, a partial stream
                 // cannot be restarted without double-emitting, so the exception propagates. When retries
                 // are exhausted the filter is false and the exception surfaces to the selecting orchestrator.
-                catch (Exception ex) when (!yielded && ShouldRetry(ex, attempt, out var delay))
+                catch (Exception ex) when ((ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested) && (!yielded && ShouldRetry(ex, attempt, out var delay)))
                 {
                     _onRetry?.Invoke(attempt, ex);
                     if (delay > TimeSpan.Zero)
