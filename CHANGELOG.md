@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.14.3] - 2026-10-05
+
+### Changed
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.51.0 -> 0.51.1, `IronHive.Providers.Anthropic` 0.51.0 -> 0.51.1, `IronHive.Providers.GoogleAI` 0.51.0 -> 0.51.1, `IronHive.Providers.OpenAI` 0.51.0 -> 0.51.1, `IronHive.Providers.OpenAI.Compatible` 0.51.0 -> 0.51.1, `LMSupply.Generator` 0.105.1 -> 0.105.2. No source changes.
+
 ## [0.14.2] - 2026-10-05
 
 ### Changed
