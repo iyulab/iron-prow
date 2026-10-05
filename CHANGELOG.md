@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [0.15.0] - Unreleased
+## [0.15.0] - 2026-10-05
 
 ### Fixed
 - **A 503 with `Retry-After` from an IronHive OpenAI-compatible provider is retried after the hint, like the OpenAI
