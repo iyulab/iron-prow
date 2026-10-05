@@ -15,7 +15,9 @@ public readonly record struct HttpFailure(int StatusCode, TimeSpan? RetryAfter);
 /// <summary>
 /// Reads the <see cref="HttpFailure"/> an exception describes. Providers surface HTTP errors as different exception
 /// types (the SDK's own, a provider library's normalized one), so the gateway asks every registered reader and uses
-/// the first answer. <see cref="DefaultErrorClassifier"/> classifies by it and <see cref="ResilienceChatClient"/>
+/// the first answer — the readers you register first, the built-in <see cref="HttpStatusFailureReader"/> last: it
+/// reads any <see cref="HttpRequestException"/>'s status but never its retry hint, so a provider library whose
+/// exception derives from it and carries the hint must be asked before it. <see cref="DefaultErrorClassifier"/> classifies by it and <see cref="ResilienceChatClient"/>
 /// waits the provider's retry hint. Register an extra reader with
 /// <c>services.TryAddEnumerable(ServiceDescriptor.Singleton&lt;IHttpFailureReader, MyReader&gt;())</c>.
 /// </summary>
@@ -67,11 +69,20 @@ internal static class HttpFailureReaders
 
     internal static HttpFailure? Read(IReadOnlyList<IHttpFailureReader> readers, Exception exception)
     {
+        // Registration order puts the built-in reader first (AddIronProw registers it before any provider adds its
+        // own), so the specific readers are asked in a first pass and the built-in one only if none answered.
         foreach (var reader in readers)
         {
-            if (reader.Read(exception) is { } failure)
+            if (reader is not HttpStatusFailureReader && reader.Read(exception) is { } failure)
                 return failure;
         }
+
+        foreach (var reader in readers)
+        {
+            if (reader is HttpStatusFailureReader && reader.Read(exception) is { } failure)
+                return failure;
+        }
+
         return null;
     }
 }

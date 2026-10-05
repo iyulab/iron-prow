@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.15.0] - Unreleased
+
+### Fixed
+- **A 503 with `Retry-After` from an IronHive OpenAI-compatible provider is retried after the hint, like the OpenAI
+  SDK client's.** IronHive 0.52.0 throws `ProviderHttpException` (status + retry hint) for HTTP errors other than 429;
+  `IronHiveHttpFailureReader` reads it, so `DefaultErrorClassifier` treats a 503/429 with a hint as retryable and
+  `ResilienceChatClient` waits it, instead of falling back to the next provider.
+- **Registered `IHttpFailureReader`s are asked before the built-in `HttpStatusFailureReader`.** The built-in reader
+  reads any `HttpRequestException`'s status but never a retry hint, and `AddIronProw` registers it first, so it
+  answered before a provider library's own reader could.
+
+### Dependencies
+- IronHive 0.52.0.
+
 ## [0.14.3] - 2026-10-05
 
 ### Changed

@@ -40,6 +40,34 @@ public class RateLimitClassificationTests
             .Classify(new RateLimitException("429") { RetryAfter = TimeSpan.FromSeconds(2) })
             .Should().Be(ErrorClassification.FallbackEligible);
 
+    // A busy self-hosted server sheds load with 503 + Retry-After. Through the registered readers (the built-in status
+    // reader first, as AddIronProw registers it) the hint survives, so the gateway waits on the same provider instead of
+    // falling back — the same as the OpenAI SDK client's 503.
+    [Fact]
+    public void A_503_with_a_retry_hint_is_retryable()
+        => ClassifierWithIronHiveProvider()
+            .Classify(new ProviderHttpException("busy", System.Net.HttpStatusCode.ServiceUnavailable) { RetryAfter = TimeSpan.FromSeconds(1) })
+            .Should().Be(ErrorClassification.Retryable);
+
+    [Fact]
+    public void A_503_without_a_retry_hint_is_fallback_eligible()
+        => ClassifierWithIronHiveProvider()
+            .Classify(new ProviderHttpException("busy", System.Net.HttpStatusCode.ServiceUnavailable))
+            .Should().Be(ErrorClassification.FallbackEligible);
+
+    // Positive control for the reader order: the built-in reader alone reads the status but not the hint.
+    [Fact]
+    public void The_built_in_reader_alone_loses_the_hint()
+        => new DefaultErrorClassifier()
+            .Classify(new ProviderHttpException("busy", System.Net.HttpStatusCode.ServiceUnavailable) { RetryAfter = TimeSpan.FromSeconds(1) })
+            .Should().Be(ErrorClassification.FallbackEligible);
+
+    [Fact]
+    public void Reader_reports_the_status_and_hint_of_any_http_error()
+        => new IronHiveHttpFailureReader()
+            .Read(new ProviderHttpException("bad gateway", System.Net.HttpStatusCode.BadGateway) { RetryAfter = TimeSpan.FromSeconds(4) })
+            .Should().Be(new HttpFailure(502, TimeSpan.FromSeconds(4)));
+
     [Fact]
     public void Reader_reports_status_429_and_the_hint()
         => new IronHiveHttpFailureReader().Read(new RateLimitException("429") { RetryAfter = TimeSpan.FromSeconds(3) })

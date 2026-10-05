@@ -149,6 +149,31 @@ public class HttpStatusClassificationTests
             .Should().Be(ErrorClassification.Retryable);
     }
 
+    // AddIronProw registers the built-in reader before a provider library adds its own. The built-in one reads any
+    // HttpRequestException's status but not a retry hint, so a library exception deriving from it must reach its own
+    // reader first — otherwise a 503 with a hint is classified as one without.
+    [Fact]
+    public void A_registered_reader_answers_before_the_built_in_one_for_an_HttpRequestException_it_knows()
+    {
+        var services = new ServiceCollection();
+        services.AddIronProw();
+        services.AddSingleton<IHttpFailureReader>(new HintedReader());
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IErrorClassifier>().Classify(new HintedException())
+            .Should().Be(ErrorClassification.Retryable);
+        // Positive control: the built-in reader alone sees the 503 without its hint.
+        new DefaultErrorClassifier().Classify(new HintedException()).Should().Be(ErrorClassification.FallbackEligible);
+    }
+
+    private sealed class HintedException() : HttpRequestException("busy", null, HttpStatusCode.ServiceUnavailable);
+
+    private sealed class HintedReader : IHttpFailureReader
+    {
+        public HttpFailure? Read(Exception exception)
+            => exception is HintedException ? new HttpFailure(503, TimeSpan.FromSeconds(1)) : null;
+    }
+
     private sealed class MarkerException : Exception;
 
     private sealed class MarkerReader : IHttpFailureReader
