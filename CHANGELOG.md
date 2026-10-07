@@ -8,6 +8,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 
 ### Changed
 - Re-pinned sibling package(s) `Iyu.Conventions.Testing` 0.4.0 -> 0.5.0, `LMSupply.Generator` 0.110.0 -> 0.111.0. No source changes.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.57.0 -> 0.58.0, `IronHive.Providers.Anthropic` 0.57.0 -> 0.58.0, `IronHive.Providers.GoogleAI` 0.57.0 -> 0.58.0, `IronHive.Providers.OpenAI` 0.57.0 -> 0.58.0, `IronHive.Providers.OpenAI.Compatible` 0.57.0 -> 0.58.0.
 
 ## [0.15.11] - 2026-10-07
 
