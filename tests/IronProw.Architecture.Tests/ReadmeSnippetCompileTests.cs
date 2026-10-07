@@ -54,6 +54,8 @@ public class ReadmeSnippetCompileTests
         ("inner", "IChatClient inner = null!;"),
         ("generator", "ITextGenerator generator = null!;"),
         ("probe", "IReadinessProbe probe = null!;"),
+        ("distributedCache", "Microsoft.Extensions.Caching.Distributed.IDistributedCache distributedCache = null!;"),
+        ("tenantId", "string tenantId = \"\";"),
     ];
 
     private static readonly string[] AssembliesToLoad =
@@ -62,6 +64,7 @@ public class ReadmeSnippetCompileTests
         "LMSupply.Generator", "LMSupply.Core", "FluxGuard",
         "Microsoft.Extensions.AI", "Microsoft.Extensions.AI.Abstractions",
         "Microsoft.Extensions.DependencyInjection", "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Microsoft.Extensions.Caching.Abstractions",
     ];
 
     public static TheoryData<string> Blocks()
