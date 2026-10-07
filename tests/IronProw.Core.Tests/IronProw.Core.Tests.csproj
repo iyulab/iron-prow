@@ -14,6 +14,8 @@
     <PackageReference Include="Microsoft.Testing.Extensions.HangDump" />
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/IronProw.Core/IronProw.Core.csproj" />

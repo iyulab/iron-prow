@@ -316,6 +316,21 @@ IChatClient piped = new ChatClientBuilder(inner)
 
 예방 쪽은 로컬 경로(`IronProw.LMSupply`)의 샘플러다. `ChatOptions.FrequencyPenalty`/`PresencePenalty`가 전달되고, lm-supply 고유의 `repetition_penalty`(기본 1.1)는 `ChatOptions.AdditionalProperties["repetition_penalty"]`로 준다.
 
+### 응답 캐시 (정확 일치)
+
+반복되는 같은 요청의 추론 비용을 줄이려면 별도 기능 없이 Microsoft.Extensions.AI 의 `DistributedCachingChatClient` 를 게이트웨이 **바깥**에 둔다. 요청(메시지·옵션)이 같으면 제공자를 부르지 않고 캐시된 응답을 돌려주며, 스트리밍 호출은 스트림으로 재생된다. 바깥에 두므로 캐시에 들어가는 응답은 출력 가드를 이미 통과한 것이다(차단된 요청은 예외라 캐시되지 않는다).
+
+```csharp
+IChatClient gateway = sp.GetRequiredService<IChatClient>();   // AddIronProw(...).UseFluxGuard() 가 만든 클라이언트
+IChatClient cached = new ChatClientBuilder(gateway)
+    .UseDistributedCache(distributedCache, c => c.CacheKeyAdditionalValues = [tenantId])   // 테넌트마다 다른 키 공간
+    .Build();
+```
+
+- **테넌트 경계**: 캐시 키는 요청 내용으로만 만들어지므로, 여러 테넌트·사용자가 한 캐시를 쓰면 `CacheKeyAdditionalValues` 에 그 식별자를 넣는다 — 넣지 않으면 같은 질문의 답이 테넌트 사이에 공유된다.
+- 보존 기간·저장소는 `IDistributedCache` 구현(메모리, Redis 등)이 정한다. 캐시에는 프롬프트와 응답 원문이 저장된다는 점을 운영 정책에 반영한다.
+- 의미 유사도 캐시(임베딩 거리로 «비슷한» 요청에 답하기)는 제공하지 않는다 — 다른 질문에 같은 답을 돌려줄 위험을 소비자가 판단해야 하는 기능이라 게이트웨이 기본 단계로 두지 않았다.
+
 ## Crash-fallback 제한
 
 `LocalSafetyChatClient`(갈래 B)는 `IReadinessProbe`로 로컬 추론 불가를 감지하고, 게이트웨이 `SelectingChatClient`의 provider-level fallback으로 승격한다. **이것은 게이트웨이 수준 fallback(M2-4 범위)이다.**
