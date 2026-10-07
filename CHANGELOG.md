@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.15.12] - 2026-10-07
+
+### Changed
+- Re-pinned sibling package(s) `Iyu.Conventions.Testing` 0.4.0 -> 0.5.0, `LMSupply.Generator` 0.110.0 -> 0.111.0. No source changes.
+
 ## [0.15.11] - 2026-10-07
 
 ### Changed
