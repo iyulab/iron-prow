@@ -84,7 +84,7 @@ public sealed class SelectingChatClient : IChatClient
                 _health.RecordSuccess(reg.Id);
                 return response;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 var verdict = classifier.Classify(ex);
                 if (verdict == ErrorClassification.Terminal)
@@ -135,7 +135,7 @@ public sealed class SelectingChatClient : IChatClient
                     hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
                     update = hasNext ? enumerator.Current : null;
                 }
-                catch (Exception ex) when (!yielded)
+                catch (Exception ex) when (!yielded && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
                 {
                     var verdict = classifier.Classify(ex);
                     if (verdict == ErrorClassification.Terminal)

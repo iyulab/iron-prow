@@ -7,6 +7,12 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ## [Unreleased]
 
 ### Changed
+- **Breaking** — **the caller's own cancellation stops a provider-selecting call before the error classifier sees it.**
+  `SelectingChatClient` handed every failure to `IErrorClassifier`; the built-in `DefaultErrorClassifier` calls a
+  cancellation terminal, but a custom classifier that called it fallback-eligible moved a cancelled call to the next
+  provider. Old → new, with such a classifier, when the caller cancels: the next provider answered → the call throws
+  `OperationCanceledException` and no other provider is tried. A cancellation the caller did not ask for (a timeout)
+  is still classified. Migration: none with the built-in classifier.
 - **A refusal the account cannot pay reads as HTTP 402.** `IronHiveHttpFailureReader` maps IronHive 0.59.0's
   `BillingException` (402, or OpenAI `insufficient_quota` sent as 429) to status 402 with no retry hint, so the gateway
   and IronHive.Agent see the status. It is never retried; like a credential refusal it stays eligible for fallback to

@@ -41,6 +41,41 @@ public class SelectingChatClientTests
         result.Should().BeSameAs(ok);
     }
 
+    private sealed class AlwaysFallbackClassifier : IErrorClassifier
+    {
+        public ErrorClassification Classify(Exception ex) => ErrorClassification.FallbackEligible;
+    }
+
+    [Fact]
+    public async Task Callers_cancel_is_not_handed_to_the_classifier_and_never_falls_back()
+    {
+        // A custom classifier may call anything fallback-eligible; the caller's own cancel must still stop the call
+        // instead of moving it to the next provider.
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var cancelling = Substitute.For<IChatClient>();
+        cancelling.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns<Task<ChatResponse>>(_ =>
+            {
+                cts.Cancel();
+                throw new OperationCanceledException(cts.Token);
+            });
+        var backup = Substitute.For<IChatClient>();
+        backup.GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok"))));
+
+        var registry = new ProviderRegistry();
+        registry.Register(new("primary", ProviderKind.Frontier, 100, _ => cancelling));
+        registry.Register(new("backup", ProviderKind.Lan, 50, _ => backup));
+        var sut = new SelectingChatClient(Substitute.For<IServiceProvider>(), registry, new DefaultProviderSelector(),
+            new AllowGuard(), new AlwaysFallbackClassifier(),
+            new IronProwOptions { Resilience = new ResilienceOptions { MaxRetries = 0, BaseDelay = TimeSpan.Zero } });
+
+        await sut.Invoking(s => s.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: cts.Token))
+            .Should().ThrowAsync<OperationCanceledException>();
+        await backup.DidNotReceive().GetResponseAsync(
+            Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions?>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task Throws_when_no_candidates()
     {
