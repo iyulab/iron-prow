@@ -9,8 +9,11 @@ namespace IronProw.Core;
 /// <item><term>429, 503</term><description><see cref="ErrorClassification.Retryable"/> when the provider sent a retry hint
 /// (<see cref="ResilienceChatClient"/> waits it, up to <see cref="ResilienceOptions.MaxRetryAfter"/>); otherwise
 /// <see cref="ErrorClassification.FallbackEligible"/> — a capacity signal with no end in sight is not worth a blind retry.</description></item>
-/// <item><term>any other status</term><description><see cref="ErrorClassification.FallbackEligible"/> — credentials, a model the
-/// provider does not serve, or a request this provider rejects (a 400 from one provider is not evidence another rejects it).</description></item>
+/// <item><term>any other status</term><description><see cref="ErrorClassification.FallbackEligible"/> — credentials, an account
+/// that cannot pay (402), a model the provider does not serve, or a request this provider rejects (a 400 from one provider is not
+/// evidence another rejects it). None of these is retried: the same request to the same provider meets the same refusal.
+/// An application that treats an unfunded account as the end of the chain decorates this classifier to return
+/// <see cref="ErrorClassification.Terminal"/> for 402.</description></item>
 /// </list>
 /// A consumer whose providers give a status a domain meaning (for example a local provider that answers 409 until a
 /// download is approved) decorates this classifier for those codes. After the per-provider retries are spent a

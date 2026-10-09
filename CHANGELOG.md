@@ -6,7 +6,14 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 
 ## [Unreleased]
 
+### Changed
+- **A refusal the account cannot pay reads as HTTP 402.** `IronHiveHttpFailureReader` maps IronHive 0.59.0's
+  `BillingException` (402, or OpenAI `insufficient_quota` sent as 429) to status 402 with no retry hint, so the gateway
+  and IronHive.Agent see the status. It is never retried; like a credential refusal it stays eligible for fallback to
+  another provider (`DefaultErrorClassifier` remarks say how to make it terminal).
+
 ### Dependencies
+- Re-pinned sibling package(s) `IronHive.*` 0.58.0 -> 0.59.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.111.0 -> 0.113.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.113.0 -> 0.115.1.
 

@@ -72,4 +72,16 @@ public class RateLimitClassificationTests
     public void Reader_reports_status_429_and_the_hint()
         => new IronHiveHttpFailureReader().Read(new RateLimitException("429") { RetryAfter = TimeSpan.FromSeconds(3) })
             .Should().Be(new HttpFailure(429, TimeSpan.FromSeconds(3)));
+
+    // An account that cannot pay does not recover by waiting, whatever status it arrived with (OpenAI sends an exhausted
+    // quota as 429): it is read as 402 and never retried on the same provider.
+    [Fact]
+    public void Reader_reports_a_billing_refusal_as_402_without_a_hint()
+        => new IronHiveHttpFailureReader().Read(new BillingException("You exceeded your current quota"))
+            .Should().Be(new HttpFailure(402, null));
+
+    [Fact]
+    public void A_billing_refusal_is_not_retried()
+        => ClassifierWithIronHiveProvider().Classify(new BillingException("insufficient_quota"))
+            .Should().Be(ErrorClassification.FallbackEligible);
 }
