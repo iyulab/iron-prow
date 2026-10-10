@@ -4,9 +4,16 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [Unreleased]
+## [0.16.0] - 2026-10-10
 
 ### Changed
+- **A failure the vendor sends inside a started stream is classified as the HTTP error it stands for.**
+  `IronHiveHttpFailureReader` reads IronHive 0.61.0's `ProviderResponseException.EquivalentStatusCode` (the status the
+  vendor documents for the same error outside a stream): OpenAI's mid-stream `server_error` (500) is now retried, Anthropic's
+  `overloaded_error` (529) handled as capacity, an `invalid_request_error` (400) is still never retried. Before, every
+  mid-stream failure fell back to the next provider. Without a documented status nothing changes.
+- **HTTP 529 (Anthropic «overloaded») is a capacity signal like 429 and 503.** With a retry hint it is waited on the same
+  provider; without one it falls back. Before, it was handled as «any other status».
 - **Breaking** — **the caller's own cancellation stops a provider-selecting call before the error classifier sees it.**
   `SelectingChatClient` handed every failure to `IErrorClassifier`; the built-in `DefaultErrorClassifier` calls a
   cancellation terminal, but a custom classifier that called it fallback-eligible moved a cancelled call to the next
@@ -24,6 +31,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.113.0 -> 0.115.1.
 - Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.59.0 -> 0.59.1, `IronHive.Providers.Anthropic` 0.59.0 -> 0.59.1, `IronHive.Providers.GoogleAI` 0.59.0 -> 0.59.1, `IronHive.Providers.OpenAI` 0.59.0 -> 0.59.1, `IronHive.Providers.OpenAI.Compatible` 0.59.0 -> 0.59.1.
 - Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.59.1 -> 0.60.0, `IronHive.Providers.Anthropic` 0.59.1 -> 0.60.0, `IronHive.Providers.GoogleAI` 0.59.1 -> 0.60.0, `IronHive.Providers.OpenAI` 0.59.1 -> 0.60.0, `IronHive.Providers.OpenAI.Compatible` 0.59.1 -> 0.60.0.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.60.0 -> 0.61.0, `IronHive.Providers.Anthropic` 0.60.0 -> 0.61.0, `IronHive.Providers.GoogleAI` 0.60.0 -> 0.61.0, `IronHive.Providers.OpenAI` 0.60.0 -> 0.61.0, `IronHive.Providers.OpenAI.Compatible` 0.60.0 -> 0.61.0.
 
 ## [0.15.12] - 2026-10-07
 
