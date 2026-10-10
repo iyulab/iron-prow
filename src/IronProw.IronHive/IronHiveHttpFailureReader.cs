@@ -11,6 +11,10 @@ namespace IronProw.IronHive;
 /// 429) reads as 402: never retried, and like a credential refusal another provider's account is not affected by it.
 /// Without this reader the gateway sees neither a rate limit's status nor any hint, and the same 429 or 503 is
 /// classified differently depending on whether a provider was registered through ironhive or a raw SDK client.
+/// A failure the vendor sent inside a stream that had already started (<see cref="ProviderResponseException"/>) has no
+/// status of its own; it reads as the status the vendor documents for the same error outside a stream
+/// (<see cref="ProviderResponseException.EquivalentStatusCode"/> — Anthropic <c>overloaded_error</c> 529, OpenAI
+/// <c>server_error</c> 500 …), so it is retried or fallen back exactly as that HTTP error would be.
 /// Registered by every <c>AddIronHive*</c> method.
 /// </summary>
 public sealed class IronHiveHttpFailureReader : IHttpFailureReader
@@ -21,6 +25,7 @@ public sealed class IronHiveHttpFailureReader : IHttpFailureReader
         BillingException => new HttpFailure(402, null),
         RateLimitException rateLimit => new HttpFailure(429, rateLimit.RetryAfter),
         ProviderHttpException { StatusCode: { } status } http => new HttpFailure((int)status, http.RetryAfter),
+        ProviderResponseException { EquivalentStatusCode: { } equivalent } => new HttpFailure((int)equivalent, null),
         _ => null
     };
 }

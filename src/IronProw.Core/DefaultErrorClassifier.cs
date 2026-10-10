@@ -6,7 +6,7 @@ namespace IronProw.Core;
 /// <list type="table">
 /// <listheader><term>Status</term><description>Classification</description></listheader>
 /// <item><term>408, 500, 502, 504</term><description><see cref="ErrorClassification.Retryable"/> — a transient fault on the same provider.</description></item>
-/// <item><term>429, 503</term><description><see cref="ErrorClassification.Retryable"/> when the provider sent a retry hint
+/// <item><term>429, 503, 529</term><description><see cref="ErrorClassification.Retryable"/> when the provider sent a retry hint
 /// (<see cref="ResilienceChatClient"/> waits it, up to <see cref="ResilienceOptions.MaxRetryAfter"/>); otherwise
 /// <see cref="ErrorClassification.FallbackEligible"/> — a capacity signal with no end in sight is not worth a blind retry.</description></item>
 /// <item><term>any other status</term><description><see cref="ErrorClassification.FallbackEligible"/> — credentials, an account
@@ -73,7 +73,8 @@ public sealed class DefaultErrorClassifier : IErrorClassifier
     private static ErrorClassification ByStatus(HttpFailure failure) => failure.StatusCode switch
     {
         408 or 500 or 502 or 504 => ErrorClassification.Retryable,
-        429 or 503 => failure.RetryAfter is null ? ErrorClassification.FallbackEligible : ErrorClassification.Retryable,
+        // 529: Anthropic «overloaded», the same capacity signal as 503.
+        429 or 503 or 529 => failure.RetryAfter is null ? ErrorClassification.FallbackEligible : ErrorClassification.Retryable,
         _ => ErrorClassification.FallbackEligible
     };
 }
