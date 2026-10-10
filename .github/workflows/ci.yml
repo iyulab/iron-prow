@@ -10,6 +10,7 @@ on:
       # re-pin is exactly the change most likely to break the build. Without these a dependency
       # bump merged with no CI run at all.
       - '**/*.props'
+      - '**/*.targets'
       - '**/*.slnx'
       - '.github/workflows/ci.yml'
   pull_request:
@@ -21,6 +22,7 @@ on:
       # re-pin is exactly the change most likely to break the build. Without these a dependency
       # bump merged with no CI run at all.
       - '**/*.props'
+      - '**/*.targets'
       - '**/*.slnx'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
