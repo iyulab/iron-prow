@@ -14,7 +14,7 @@
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="Iyu.Conventions.Testing" />
     <!-- README snippet compile teeth: Roslyn, and ChatClientBuilder (the README shows builder.Use). -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Iyu.Conventions.Testing.Snippets" />
     <PackageReference Include="Microsoft.Extensions.AI" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
