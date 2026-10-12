@@ -1,4 +1,3 @@
-using System.ClientModel;
 using IronHive.Abstractions.Http;
 using IronHive.Abstractions.Models;
 using IronHive.Providers.Anthropic;
@@ -336,17 +335,11 @@ public static class ByoPresets
         return canceled ? ByoProbeFailure.Timeout : ByoProbeFailure.Transport;
     }
 
-    // A refusal: System.ClientModel's message is a bare "Service request failed." for any service but OpenAI's own, and
-    // the response body is where an OpenAI-compatible server (xAI, a proxy) says what was wrong. Anything else (no
-    // connection, a connect timeout): the innermost exception names the cause; the outer ones only wrap it.
+    // A refusal: every IronHive model finder raises ProviderHttpException, whose message is the provider's sentence (or the
+    // body, when a proxy answers in plain text). Anything else (no connection, a connect timeout): the innermost exception
+    // names the cause; the outer ones only wrap it.
     private static string ErrorOf(Exception exception)
     {
-        if (exception is ClientResultException result && result.GetRawResponse()?.Content?.ToString() is { Length: > 0 } body)
-        {
-            var headline = exception.Message.Split('\n', 2)[0].Trim();
-            return $"{headline} {System.Text.RegularExpressions.Regex.Replace(body.Trim(), @"\s+", " ")}";
-        }
-
         if (StatusOf(exception) is not null)
         {
             return exception.Message;
@@ -482,13 +475,10 @@ public static class ByoPresets
         });
     }
 
-    // Each SDK reports a refused request its own way; a status lets the app tell a bad key (401/403) from a wrong address (404).
+    // A status lets the app tell a bad key (401/403) from a wrong address (404). Every IronHive model finder reports a
+    // refusal as ProviderHttpException, an HttpRequestException carrying the status.
     private static int? StatusOf(Exception exception) => exception switch
     {
-        ClientResultException { Status: > 0 } result => result.Status,
-        global::Anthropic.Exceptions.AnthropicApiException anthropic => (int)anthropic.StatusCode,
-        Google.GenAI.ClientError { StatusCode: > 0 } google => google.StatusCode,
-        Google.GenAI.ServerError { StatusCode: > 0 } google => google.StatusCode,
         HttpRequestException { StatusCode: { } status } => (int)status,
         _ when exception.InnerException is { } inner => StatusOf(inner),
         _ => null,

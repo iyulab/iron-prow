@@ -107,7 +107,19 @@ public class ByoPresetsTests
         refused.Ok.Should().BeFalse();
         refused.StatusCode.Should().Be(401);
         refused.Failure.Should().Be(ByoProbeFailure.Unauthorized);
-        refused.Error.Should().NotBeNullOrEmpty();
+        refused.Error.Should().Be("Incorrect API key provided", "the provider's sentence, not the SDK's headline");
+    }
+
+    [Fact]
+    public async Task Probe_of_a_proxy_answering_in_plain_text_reports_what_it_said()
+    {
+        using var server = StubServer.Start(_ => (403, "Access denied by proxy policy"));
+
+        var refused = await ByoPresets.ProbeAsync(new ByoEndpoint("custom", server.BaseUrl, "k"), cancellationToken: Ct);
+
+        refused.StatusCode.Should().Be(403);
+        refused.Failure.Should().Be(ByoProbeFailure.Unauthorized);
+        refused.Error.Should().Be("Access denied by proxy policy");
     }
 
     [Fact]

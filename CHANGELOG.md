@@ -17,6 +17,10 @@ breaking changes, and each one is marked **Breaking** with a migration note.
   the pair (an error where warnings are errors) — before, the mixed versions restored silently and could fail at run time.
   A member that reaches you only through another package's floor is not covered: pin every member you load and move them together.
 - **The nuget.org «Release Notes» of every package link to the GitHub release of its version**, whose notes are this CHANGELOG's section for that version.
+- **`ByoPresets.ProbeAsync` reports a refusal in the provider's words.** `ByoProbeResult.Error` is the provider's sentence
+  (`Incorrect API key provided`), or the body when a proxy answers in plain text — not the SDK's «HTTP 401 (…)» headline in
+  front of the raw body. With IronHive 0.65.0 every model finder raises the same `ProviderHttpException` for an HTTP
+  refusal, so the probe reads the status and the sentence from that one type.
 
 ### Dependencies
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.115.1 -> 0.116.0.
