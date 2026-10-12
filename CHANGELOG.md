@@ -6,6 +6,11 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 
 ## [Unreleased]
 
+### Documentation
+- **`IronHiveHttpFailureReader` says which exceptions it reads**: since IronHive 0.64.0 every provider, not only the
+  OpenAI-compatible one, raises `ProviderHttpException` for an HTTP error with no more specific type, so the reader now sees
+  the status and retry hint of an Anthropic, OpenAI or Gemini refusal too. No code change.
+
 ### Changed
 - **The packages from this repository depend on each other at exactly the same version** (`[x.y.z]`), not a floor.
   A consumer that moves one of them while a family member it depends on resolves at an older version now gets restore warning NU1608 naming

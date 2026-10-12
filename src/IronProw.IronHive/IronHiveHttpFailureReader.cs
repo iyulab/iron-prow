@@ -5,8 +5,9 @@ namespace IronProw.IronHive;
 
 /// <summary>
 /// Reads the HTTP failure an ironhive provider exception describes. Ironhive normalizes every provider's rate-limit
-/// error (HTTP 429 and vendor equivalents) to <see cref="RateLimitException"/>, and the OpenAI-compatible client's
-/// other HTTP errors to <see cref="ProviderHttpException"/>; both carry the provider's retry hint when it sent one. A
+/// error (HTTP 429 and vendor equivalents) to <see cref="RateLimitException"/>, and every provider's other HTTP errors
+/// to <see cref="ProviderHttpException"/> (since IronHive 0.64.0; before, only the OpenAI-compatible client's); both
+/// carry the provider's retry hint when it sent one. A
 /// refusal the account cannot pay (<see cref="BillingException"/> — HTTP 402, or OpenAI <c>insufficient_quota</c> sent as
 /// 429) reads as 402: never retried, and like a credential refusal another provider's account is not affected by it.
 /// Without this reader the gateway sees neither a rate limit's status nor any hint, and the same 429 or 503 is
