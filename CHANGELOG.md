@@ -27,6 +27,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 - Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.62.0 -> 0.63.0, `IronHive.Providers.Anthropic` 0.62.0 -> 0.63.0, `IronHive.Providers.GoogleAI` 0.62.0 -> 0.63.0, `IronHive.Providers.OpenAI` 0.62.0 -> 0.63.0, `IronHive.Providers.OpenAI.Compatible` 0.62.0 -> 0.63.0.
 - Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.63.0 -> 0.64.0, `IronHive.Providers.Anthropic` 0.63.0 -> 0.64.0, `IronHive.Providers.GoogleAI` 0.63.0 -> 0.64.0, `IronHive.Providers.OpenAI` 0.63.0 -> 0.64.0, `IronHive.Providers.OpenAI.Compatible` 0.63.0 -> 0.64.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.118.0 -> 0.119.0.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.64.0 -> 0.65.0, `IronHive.Providers.Anthropic` 0.64.0 -> 0.65.0, `IronHive.Providers.GoogleAI` 0.64.0 -> 0.65.0, `IronHive.Providers.OpenAI` 0.64.0 -> 0.65.0, `IronHive.Providers.OpenAI.Compatible` 0.64.0 -> 0.65.0, `Iyu.Conventions.Testing` 0.9.0 -> 0.10.0, `Iyu.Conventions.Testing.Snippets` 0.9.0 -> 0.10.0, `LMSupply.Generator` 0.119.0 -> 0.120.0.
 
 ## [0.16.0] - 2026-10-10
 

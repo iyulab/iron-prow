@@ -14,19 +14,19 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="2.3.3" />
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
-    <PackageVersion Include="Iyu.Conventions.Testing" Version="0.9.0" />
+    <PackageVersion Include="Iyu.Conventions.Testing" Version="0.10.0" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
-    <PackageVersion Include="Iyu.Conventions.Testing.Snippets" Version="0.9.0" />
+    <PackageVersion Include="Iyu.Conventions.Testing.Snippets" Version="0.10.0" />
     <PackageVersion Include="Microsoft.Extensions.AI" Version="10.10.0" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.12" />
     <PackageVersion Include="FluxGuard" Version="0.21.0" />
     <!-- IronHive provider packages — unified-version family, all at the same version -->
-    <PackageVersion Include="IronHive.Extensions.AI" Version="0.64.0" />
-    <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.64.0" />
-    <PackageVersion Include="IronHive.Providers.OpenAI.Compatible" Version="0.64.0" />
-    <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.64.0" />
-    <PackageVersion Include="IronHive.Providers.GoogleAI" Version="0.64.0" />
+    <PackageVersion Include="IronHive.Extensions.AI" Version="0.65.0" />
+    <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.65.0" />
+    <PackageVersion Include="IronHive.Providers.OpenAI.Compatible" Version="0.65.0" />
+    <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.65.0" />
+    <PackageVersion Include="IronHive.Providers.GoogleAI" Version="0.65.0" />
     <!-- LMSupply local-inference packages -->
-    <PackageVersion Include="LMSupply.Generator" Version="0.119.0" />
+    <PackageVersion Include="LMSupply.Generator" Version="0.120.0" />
   </ItemGroup>
 </Project>
