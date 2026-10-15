@@ -11,6 +11,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.120.0 -> 0.121.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.121.0 -> 0.122.0.
 - Re-pinned sibling package(s) `FluxGuard` 0.21.0 -> 0.22.0.
+- Re-pinned sibling package(s) `FluxGuard` 0.22.0 -> 0.22.1.
 
 ## [0.16.1] - 2026-10-13
 
