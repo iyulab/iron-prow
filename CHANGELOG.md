@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [Unreleased]
+## [0.16.2] - 2026-10-16
 
 ### Dependencies
 - Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.65.0 -> 0.65.1, `IronHive.Providers.Anthropic` 0.65.0 -> 0.65.1, `IronHive.Providers.GoogleAI` 0.65.0 -> 0.65.1, `IronHive.Providers.OpenAI` 0.65.0 -> 0.65.1, `IronHive.Providers.OpenAI.Compatible` 0.65.0 -> 0.65.1.
@@ -16,6 +16,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 - Re-pinned sibling package(s) `FluxGuard` 0.22.1 -> 0.23.0.
 - Re-pinned sibling package(s) `FluxGuard` 0.23.0 -> 0.23.1.
 - Re-pinned sibling package(s) `FluxGuard` 0.23.1 -> 0.24.0, `LMSupply.Generator` 0.122.0 -> 0.123.0.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.66.0 -> 0.66.1, `IronHive.Providers.Anthropic` 0.66.0 -> 0.66.1, `IronHive.Providers.GoogleAI` 0.66.0 -> 0.66.1, `IronHive.Providers.OpenAI` 0.66.0 -> 0.66.1, `IronHive.Providers.OpenAI.Compatible` 0.66.0 -> 0.66.1.
 
 ## [0.16.1] - 2026-10-13
 
