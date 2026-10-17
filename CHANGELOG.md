@@ -9,6 +9,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ### Dependencies
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.123.0 -> 0.124.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.124.0 -> 0.125.0.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.125.0 -> 0.126.0.
 
 ## [0.16.2] - 2026-10-16
 
