@@ -10,6 +10,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.123.0 -> 0.124.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.124.0 -> 0.125.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.125.0 -> 0.126.0.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.66.1 -> 0.67.0, `IronHive.Providers.Anthropic` 0.66.1 -> 0.67.0, `IronHive.Providers.GoogleAI` 0.66.1 -> 0.67.0, `IronHive.Providers.OpenAI` 0.66.1 -> 0.67.0, `IronHive.Providers.OpenAI.Compatible` 0.66.1 -> 0.67.0, `LMSupply.Generator` 0.126.0 -> 0.127.0.
 
 ## [0.16.2] - 2026-10-16
 
