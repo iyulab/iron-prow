@@ -14,6 +14,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.127.0 -> 0.128.0.
 - .NET runtime packages 10.0.12 -> 10.0.13 (the 10.0 servicing band; `Microsoft.Extensions.*` and their siblings move together).
 - Re-pinned sibling package(s) `FluxGuard` 0.24.0 -> 0.25.0.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.128.0 -> 0.129.0.
 
 ## [0.16.2] - 2026-10-16
 
