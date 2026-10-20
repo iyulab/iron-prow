@@ -136,7 +136,7 @@ public static class IronHiveProviderExtensions
             var config = new GpuStackConfig();
             configure(config);
             // IronHive 0.23.0 folded GpuStackMessageGenerator into OpenAICompatibleMessageGenerator;
-            // the GPUStack specifics (the /v1-openai/ path, resolvers, connect timeout) travel in the
+            // the GPUStack specifics (its API path, resolvers, connect timeout) travel in the
             // converted config.
             var generator = new OpenAICompatibleMessageGenerator(config.ToOpenAICompatible());
             return new ChatClientAdapter(generator, modelId, "gpustack");

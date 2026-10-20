@@ -6,6 +6,10 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 
 ## [Unreleased]
 
+### Changed
+- **`AddIronHiveGpuStack` and the `gpustack` BYO preset call GPUStack's standard `/v1/`** (IronHive 0.68.0), not `/v1-openai/`.
+  GPUStack answers both the same.
+
 ### Dependencies
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.123.0 -> 0.124.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.124.0 -> 0.125.0.

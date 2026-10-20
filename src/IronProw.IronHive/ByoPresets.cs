@@ -26,7 +26,7 @@ public enum ByoWire
     /// <summary>The OpenAI-compatible <c>/v1</c> surface, through <see cref="IronHiveProviderExtensions.AddIronHiveOpenAICompatible"/>.</summary>
     OpenAICompatible,
 
-    /// <summary>GPUStack's <c>/v1-openai</c> surface, through <see cref="IronHiveProviderExtensions.AddIronHiveGpuStack"/>.</summary>
+    /// <summary>GPUStack's OpenAI-compatible surface (<c>/v1/</c>), through <see cref="IronHiveProviderExtensions.AddIronHiveGpuStack"/>.</summary>
     GpuStack,
 }
 
