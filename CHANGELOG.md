@@ -7,8 +7,9 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ## [Unreleased]
 
 ### Changed
-- **`AddIronHiveGpuStack` and the `gpustack` BYO preset call GPUStack's standard `/v1/`** (IronHive 0.68.0), not `/v1-openai/`.
-  GPUStack answers both the same.
+- **Breaking** — **`AddIronHiveGpuStack` and the `gpustack` BYO preset call GPUStack's standard `/v1/`** (IronHive 0.68.0), not
+  `/v1-openai/`. GPUStack answers both the same. Migration: a GPUStack 0.x server with nothing at `/v1/` is reached with
+  `AddIronHiveGpuStack`'s `configure` setting `config.Path = "/v1-openai/"`.
 
 ### Dependencies
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.123.0 -> 0.124.0.
