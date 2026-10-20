@@ -21,11 +21,11 @@
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.13" />
     <PackageVersion Include="FluxGuard" Version="0.25.0" />
     <!-- IronHive provider packages — unified-version family, all at the same version -->
-    <PackageVersion Include="IronHive.Extensions.AI" Version="0.67.0" />
-    <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.67.0" />
-    <PackageVersion Include="IronHive.Providers.OpenAI.Compatible" Version="0.67.0" />
-    <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.67.0" />
-    <PackageVersion Include="IronHive.Providers.GoogleAI" Version="0.67.0" />
+    <PackageVersion Include="IronHive.Extensions.AI" Version="0.68.0" />
+    <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.68.0" />
+    <PackageVersion Include="IronHive.Providers.OpenAI.Compatible" Version="0.68.0" />
+    <PackageVersion Include="IronHive.Providers.Anthropic" Version="0.68.0" />
+    <PackageVersion Include="IronHive.Providers.GoogleAI" Version="0.68.0" />
     <!-- LMSupply local-inference packages -->
     <PackageVersion Include="LMSupply.Generator" Version="0.129.0" />
   </ItemGroup>
