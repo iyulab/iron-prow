@@ -22,6 +22,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.128.0 -> 0.129.0.
 - Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.67.0 -> 0.68.0, `IronHive.Providers.Anthropic` 0.67.0 -> 0.68.0, `IronHive.Providers.GoogleAI` 0.67.0 -> 0.68.0, `IronHive.Providers.OpenAI` 0.67.0 -> 0.68.0, `IronHive.Providers.OpenAI.Compatible` 0.67.0 -> 0.68.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.129.0 -> 0.131.0.
+- Re-pinned sibling package(s) `FluxGuard` 0.25.0 -> 0.25.1, `LMSupply.Generator` 0.131.0 -> 0.132.0.
 
 ## [0.16.2] - 2026-10-16
 
