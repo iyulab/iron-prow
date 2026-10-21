@@ -218,6 +218,8 @@ public class GeneratorChatClientReasoningTests
 
         public IAsyncEnumerable<string> GenerateAsync(string prompt, LmGenerationOptions? options = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+        public IAsyncEnumerable<global::LMSupply.Generator.Models.TextStreamChunk> GenerateStreamAsync(string prompt, LmGenerationOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
         public IAsyncEnumerable<string> GenerateChatAsync(IEnumerable<LmChatMessage> messages, LmGenerationOptions? options = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
         public Task<string> GenerateCompleteAsync(string prompt, LmGenerationOptions? options = null, CancellationToken cancellationToken = default)
