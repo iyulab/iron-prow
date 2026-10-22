@@ -18,6 +18,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 
 ### Dependencies
 - Re-pinned sibling package(s) `FluxGuard` 0.25.1 -> 0.26.0 (input parts).
+- `System.ClientModel` 1.14.0 -> 1.16.0. Test tooling: xunit.v3 4.0.2, MTP HangDump 2.5.1.
 
 ## [0.17.0] - 2026-10-23
 
