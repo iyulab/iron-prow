@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [Unreleased]
+## [0.17.0] - 2026-10-23
 
 ### Changed
 - **Breaking** — **the local path runs on LMSupply's own chat client** (`generator.AsChatClient()`, LMSupply.Generator 0.135.0+):
@@ -36,6 +36,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.132.0 -> 0.133.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.133.0 -> 0.134.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.134.0 -> 0.136.0.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.68.0 -> 0.69.0, `IronHive.Providers.Anthropic` 0.68.0 -> 0.69.0, `IronHive.Providers.GoogleAI` 0.68.0 -> 0.69.0, `IronHive.Providers.OpenAI` 0.68.0 -> 0.69.0, `IronHive.Providers.OpenAI.Compatible` 0.68.0 -> 0.69.0.
 
 ## [0.16.2] - 2026-10-16
 
