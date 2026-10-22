@@ -14,6 +14,8 @@ namespace IronProw.FluxGuard;
 ///   <item><c>Flagged</c> or <c>NeedsEscalation</c> → blocked when <see cref="FluxGuardFailMode.Closed"/>
 ///     (default) using the first triggered guard's <c>Details</c>; allowed when
 ///     <see cref="FluxGuardFailMode.Open"/> (opt-in).</item>
+///   <item>Unchecked input parts (<c>UncheckedParts</c> &gt; 0) → blocked when <see cref="FluxGuardFailMode.Closed"/>;
+///     allowed when <see cref="FluxGuardFailMode.Open"/>.</item>
 ///   <item><c>Pass</c> → <see cref="GuardVerdict.Allow()"/>.</item>
 /// </list>
 /// A definite <c>Blocked</c> result always blocks regardless of <see cref="FluxGuardFailMode"/>.
@@ -39,10 +41,29 @@ public sealed class FluxGuardGuard : IGuard
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The text of every request message is judged together with the inline non-text contents of every message
+    /// (<see cref="DataContent"/> — an attached image) as <see cref="GuardContext.Parts"/>: FluxGuard reads a part through
+    /// the <c>IInputPartTextExtractor</c> registered on the guard (OCR, or a transcribe-only vision call), so an
+    /// instruction written inside an image is judged like the same words typed. A part referenced by URI only
+    /// (<see cref="UriContent"/>) has no bytes here and is not passed. A part the guard could not read
+    /// (<see cref="GuardResult.UncheckedParts"/>) leaves the decision covering less than the model will see — it is
+    /// blocked in <see cref="FluxGuardFailMode.Closed"/> and allowed in <see cref="FluxGuardFailMode.Open"/>.
+    /// </remarks>
     public async ValueTask<GuardVerdict> InspectInputAsync(IReadOnlyList<ChatMessage> messages, CancellationToken ct)
     {
         var text = string.Join("\n", messages.Select(m => m.Text ?? string.Empty));
-        var result = await _guard.CheckInputAsync(text, ct).ConfigureAwait(false);
+        var parts = messages
+            .SelectMany(m => m.Contents.OfType<DataContent>())
+            .Where(d => !d.Data.IsEmpty)
+            .Select(d => new GuardInputPart(d.MediaType, d.Data))
+            .ToList();
+        var result = await _guard.CheckInputAsync(new GuardContext
+        {
+            OriginalInput = text,
+            Parts = parts,
+            CancellationToken = ct
+        }).ConfigureAwait(false);
         return ToVerdict(result);
     }
 
@@ -64,6 +85,11 @@ public sealed class FluxGuardGuard : IGuard
         // A definite block is a clear policy decision — it always blocks, independent of fail mode.
         if (result.IsBlocked)
             return GuardVerdict.Block(result.BlockReason ?? "Content blocked by FluxGuard");
+
+        // Parts the guard could not read are uncertain coverage — the fail mode decides, as for an uncertain verdict.
+        if (result.UncheckedParts > 0 && _failMode == FluxGuardFailMode.Closed)
+            return GuardVerdict.Block(
+                $"{result.UncheckedParts} input part(s) could not be checked (no text extractor read them); blocked in fail-closed mode");
 
         // Flagged / NeedsEscalation are uncertain verdicts — the fail mode decides their resolution.
         if (result.IsFlagged || result.NeedsEscalation)

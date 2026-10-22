@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [Unreleased]
+
+### Changed
+- **Breaking** — **the FluxGuard guard judges the images of a request, not only its text.** `FluxGuardGuard` (what
+  `UseFluxGuard()` installs) passes the inline images of the request messages (`DataContent`) to FluxGuard as input parts,
+  and FluxGuard reads each through the `IInputPartTextExtractor` registered on it — so an instruction written inside a
+  screenshot is blocked like the same words typed. An image referenced by URI only (`UriContent`) is not fetched. An image
+  no extractor reads is **blocked in the default fail-closed mode** (before, every image passed unchecked) and allowed with
+  `FluxGuardFailMode.Open`. Migration: register an extractor on the guard
+  (`UseFluxGuard(configure: b => b.WithPartTextExtractor(myExtractor))`), or opt into `FluxGuardFailMode.Open` to keep
+  passing images you do not judge.
+
+### Dependencies
+- Re-pinned sibling package(s) `FluxGuard` 0.25.1 -> 0.26.0 (input parts).
+
 ## [0.17.0] - 2026-10-23
 
 ### Changed

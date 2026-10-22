@@ -115,6 +115,7 @@ if (why is null && probe.Lists("grok-4"))
 `UseFluxGuard()` (파라미터 없음) 는 Standard preset(L1 regex, offline)을 적용한다.  
 `UseFluxGuard(configure: b => …)` 는 Standard preset 위에 FluxGuard 빌더 설정을 더한다(예: `b.WithBlockThreshold(0.8)`). 이미 만든 FluxGuard 인스턴스를 주입하려면 `UseFluxGuard(IFluxGuard)` 오버로드를 사용한다. 다른 가드는 `UseGuard(sp => myGuard)` 로 `IGuard` 를 직접 꽂는다.  
 **fail mode**: 기본은 fail-closed(불확실 verdict 차단). 가용성을 우선하는 소비자는 `UseFluxGuard(failMode: FluxGuardFailMode.Open)`으로 opt-in — Flagged/NeedsEscalation을 통과시킨다(정의된 Block은 mode 무관 항상 차단).
+**이미지 입력**: 요청 메시지의 인라인 이미지(`DataContent`)도 가드에 넘어간다 — FluxGuard 에 등록한 `IInputPartTextExtractor`(OCR · 전사 전용 비전 호출)가 읽은 텍스트를 같은 입력 파이프라인으로 판정한다(`UseFluxGuard(configure: b => b.WithPartTextExtractor(extractor))`). 아무 추출기도 읽지 못한 이미지는 fail-closed 에서 차단, `FluxGuardFailMode.Open` 에서 통과. URI 로만 참조된 이미지(`UriContent`)는 가져오지 않는다.
 
 ### B. Local-provider safety (lm-supply / ONNX / DirectML)
 

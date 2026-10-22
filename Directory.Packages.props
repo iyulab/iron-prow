@@ -19,7 +19,7 @@
     <PackageVersion Include="Iyu.Conventions.Testing.Snippets" Version="0.13.0" />
     <PackageVersion Include="Microsoft.Extensions.AI" Version="10.11.0" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.13" />
-    <PackageVersion Include="FluxGuard" Version="0.25.1" />
+    <PackageVersion Include="FluxGuard" Version="0.26.0" />
     <!-- IronHive provider packages — unified-version family, all at the same version -->
     <PackageVersion Include="IronHive.Extensions.AI" Version="0.69.0" />
     <PackageVersion Include="IronHive.Providers.OpenAI" Version="0.69.0" />
