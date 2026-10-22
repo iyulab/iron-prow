@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using AwesomeAssertions;
+using LMSupply.Generator;
 using LMSupply.Generator.Abstractions;
 using Microsoft.Extensions.AI;
 using Xunit;
@@ -21,7 +22,7 @@ namespace IronProw.LMSupply.Tests;
 /// TextReasoningContent (dropped only on ReasoningOutput.None), usage/model id → ChatResponse, and
 /// GetService(ChatClientMetadata) → Metadata.
 /// </summary>
-public class GeneratorChatClientReasoningTests
+public class LocalChatClientReasoningContractTests
 {
     [Theory]
     [InlineData(null, ThinkingMode.Auto)]
@@ -31,7 +32,7 @@ public class GeneratorChatClientReasoningTests
     public async Task Reasoning_effort_maps_to_thinking_mode(ReasoningEffort? effort, ThinkingMode expected)
     {
         var gen = new FakeTextGenerator { CompletionContent = "ok" };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
         var options = effort is null ? new ChatOptions() : new ChatOptions { Reasoning = new ReasoningOptions { Effort = effort } };
 
         await sut.GetResponseAsync([new(ChatRole.User, "hi")], options, TestContext.Current.CancellationToken);
@@ -49,7 +50,7 @@ public class GeneratorChatClientReasoningTests
             CompletionReasoning = "First I outline the essay...",
             CompletionFinishReason = "length"
         };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         var response = await sut.GetResponseAsync([new(ChatRole.User, "essay")], cancellationToken: TestContext.Current.CancellationToken);
 
@@ -64,7 +65,7 @@ public class GeneratorChatClientReasoningTests
     public async Task Reasoning_is_dropped_when_output_is_None()
     {
         var gen = new FakeTextGenerator { CompletionContent = "answer", CompletionReasoning = "thinking" };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         var response = await sut.GetResponseAsync(
             [new(ChatRole.User, "hi")],
@@ -80,7 +81,7 @@ public class GeneratorChatClientReasoningTests
     public async Task Reasoning_extraction_is_requested_unless_output_is_None()
     {
         var gen = new FakeTextGenerator { CompletionContent = "ok" };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         await sut.GetResponseAsync([new(ChatRole.User, "hi")], new ChatOptions { MaxOutputTokens = 8 }, TestContext.Current.CancellationToken);
 
@@ -95,7 +96,7 @@ public class GeneratorChatClientReasoningTests
             CompletionContent = "ok",
             CompletionUsage = new ChatTokenUsage { PromptTokens = 12, CompletionTokens = 5, TotalTokens = 17 }
         };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         var response = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
@@ -110,7 +111,7 @@ public class GeneratorChatClientReasoningTests
     public async Task Usage_is_null_when_the_backend_reports_none()
     {
         var gen = new FakeTextGenerator { CompletionContent = "ok" };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         var response = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
@@ -121,7 +122,7 @@ public class GeneratorChatClientReasoningTests
     [Fact]
     public void GetService_answers_ChatClientMetadata()
     {
-        var sut = new GeneratorChatClient(new FakeTextGenerator());
+        var sut = new FakeTextGenerator().AsChatClient();
 
         var metadata = sut.GetService<ChatClientMetadata>();
 
@@ -143,7 +144,7 @@ public class GeneratorChatClientReasoningTests
                 new LmChatStreamChunk { FinishReason = "stop" }
             ]
         };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         var updates = new List<ChatResponseUpdate>();
         await foreach (var u in sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken))
@@ -164,7 +165,7 @@ public class GeneratorChatClientReasoningTests
         {
             StreamChunks = [new LmChatStreamChunk { ReasoningDelta = "think" }, new LmChatStreamChunk { Text = "answer", FinishReason = "stop" }]
         };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         var updates = new List<ChatResponseUpdate>();
         await foreach (var u in sut.GetStreamingResponseAsync(

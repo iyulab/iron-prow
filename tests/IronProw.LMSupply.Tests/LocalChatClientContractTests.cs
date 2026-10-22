@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using AwesomeAssertions;
+using LMSupply.Generator;
 using LMSupply.Generator.Abstractions;
 using Microsoft.Extensions.AI;
 using Xunit;
@@ -13,13 +14,13 @@ using LmGenerationOptions = LMSupply.Generator.Models.GenerationOptions;
 
 namespace IronProw.LMSupply.Tests;
 
-public class GeneratorChatClientTests
+public class LocalChatClientContractTests
 {
     [Fact]
     public async Task MaxOutputTokens_maps_to_MaxNewTokens()
     {
         var gen = new FakeTextGenerator { CompletionContent = "ok" };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         await sut.GetResponseAsync([new(ChatRole.User, "hi")], new ChatOptions { MaxOutputTokens = 256 }, TestContext.Current.CancellationToken);
 
@@ -32,7 +33,7 @@ public class GeneratorChatClientTests
     public async Task Roles_map_to_lmsupply_roles()
     {
         var gen = new FakeTextGenerator { CompletionContent = "ok" };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         await sut.GetResponseAsync([
                 new(ChatRole.System, "sys"),
@@ -55,7 +56,7 @@ public class GeneratorChatClientTests
             CompletionToolCalls = [new LmChatToolCall("call_1", "do_it", "{\"x\":1}")],
             CompletionFinishReason = "tool_calls"
         };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         var response = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
@@ -87,7 +88,7 @@ public class GeneratorChatClientTests
                 }
             ]
         };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         var updates = new List<ChatResponseUpdate>();
         await foreach (var u in sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken))
@@ -123,7 +124,7 @@ public class GeneratorChatClientTests
                 }
             ]
         };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         var updates = new List<ChatResponseUpdate>();
         await foreach (var u in sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken))
@@ -155,7 +156,7 @@ public class GeneratorChatClientTests
             CompletionTimings = timings,
             StreamChunks = [new LmChatStreamChunk { Text = "ok" }, new LmChatStreamChunk { FinishReason = "stop", Usage = usage, Timings = timings }]
         };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
         var ct = TestContext.Current.CancellationToken;
 
         var response = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: ct);
@@ -178,7 +179,7 @@ public class GeneratorChatClientTests
             CompletionContent = "ok",
             CompletionUsage = new global::LMSupply.Generator.Models.ChatTokenUsage { PromptTokens = 13, CompletionTokens = 40, TotalTokens = 53 }
         };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         var response = await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
 
@@ -192,7 +193,7 @@ public class GeneratorChatClientTests
         {
             StreamChunks = [new LmChatStreamChunk { Text = "ok" }, new LmChatStreamChunk { FinishReason = "stop" }]
         };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
 
         var updates = new List<ChatResponseUpdate>();
         await foreach (var u in sut.GetStreamingResponseAsync([new(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken))
@@ -208,7 +209,7 @@ public class GeneratorChatClientTests
     public async Task Cancellation_token_is_propagated_to_generator()
     {
         var gen = new FakeTextGenerator { CompletionContent = "ok" };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
         using var cts = new CancellationTokenSource();
 
         await sut.GetResponseAsync([new(ChatRole.User, "hi")], cancellationToken: cts.Token);
@@ -219,7 +220,7 @@ public class GeneratorChatClientTests
     [Fact]
     public void GetService_returns_self_for_IChatClient()
     {
-        var sut = new GeneratorChatClient(new FakeTextGenerator());
+        var sut = new FakeTextGenerator().AsChatClient();
         sut.GetService(typeof(IChatClient)).Should().BeSameAs(sut);
         sut.GetService(typeof(string)).Should().BeNull();
     }
@@ -230,7 +231,7 @@ public class GeneratorChatClientTests
     public async Task Structured_tool_result_is_flattened_to_text_not_the_clr_type_name()
     {
         var gen = new FakeTextGenerator { CompletionContent = "ok" };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
         var result = new List<AIContent>
         {
             new TextContent("front page"),
@@ -245,18 +246,28 @@ public class GeneratorChatClientTests
         var toolMessage = gen.LastMessages.Should().ContainSingle(m => m.Role == LmChatRole.Tool).Subject;
         toolMessage.Content.Should().NotContain("AIContent");
         toolMessage.Content.Should().StartWith("front page");
-        toolMessage.Content.Should().Contain("image/png").And.Contain("omitted");
+        toolMessage.Content.Should().Contain("image/png");
     }
 
     [Theory]
     [InlineData("plain", "plain")]
     [InlineData(42, "42")]
-    public void FlattenToolResult_keeps_strings_and_renders_scalars(object result, string expected)
-        => GeneratorChatClient.FlattenToolResult(result).Should().Be(expected);
+    public async Task A_scalar_tool_result_reaches_the_model_as_its_text(object result, string expected)
+        => (await ToolMessageFor(result)).Should().Be(expected);
 
     [Fact]
-    public void FlattenToolResult_renders_a_poco_as_json_not_its_type_name()
-        => GeneratorChatClient.FlattenToolResult(new { temperature = 22 }).Should().Be("{\"temperature\":22}");
+    public async Task A_poco_tool_result_reaches_the_model_as_json_not_its_type_name()
+        => (await ToolMessageFor(new { temperature = 22 })).Should().Be("{\"temperature\":22}");
+
+    private static async Task<string> ToolMessageFor(object result)
+    {
+        var gen = new FakeTextGenerator { CompletionContent = "ok" };
+        await gen.AsChatClient().GetResponseAsync([
+                new(ChatRole.Assistant, [new FunctionCallContent("call-1", "lookup")]),
+                new(ChatRole.Tool, [new FunctionResultContent("call-1", result)]),
+            ], cancellationToken: TestContext.Current.CancellationToken);
+        return gen.LastMessages.Single(m => m.Role == LmChatRole.Tool).Content;
+    }
 
     [Fact]
     public async Task Declaration_only_tools_reach_the_model_next_to_functions()
@@ -270,7 +281,7 @@ public class GeneratorChatClientTests
         var options = new ChatOptions { Tools = [declaration, function] };
 
         var gen = new FakeTextGenerator { CompletionContent = "ok" };
-        var sut = new GeneratorChatClient(gen);
+        var sut = gen.AsChatClient();
         await sut.GetResponseAsync([new(ChatRole.User, "hi")], options, TestContext.Current.CancellationToken);
 
         gen.LastOptions!.Tools!.Select(t => t.Name).Should().Equal("read_page", "list_tabs");

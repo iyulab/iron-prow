@@ -7,6 +7,11 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ## [Unreleased]
 
 ### Changed
+- **Breaking** — **the local path runs on LMSupply's own chat client** (`generator.AsChatClient()`, LMSupply.Generator 0.135.0+):
+  `GeneratorChatClient` is removed. `AddLMSupplyLocal(ITextGenerator, …)` and `BuildLocalSafeClient` adapt the generator with it, under the
+  same safety layer. Behaviour is the same (role and option mapping, tools, streaming, usage, reasoning), except an omitted non-text tool
+  result is now described as «left out» rather than «omitted». Migration: `new GeneratorChatClient(generator)` → `generator.AsChatClient()`
+  (`using LMSupply.Generator;`).
 - **A gateway timeout from a CDN in front of the provider is retried on the same provider.** HTTP 520, 522 and 524 (Cloudflare:
   the origin answered nothing usable, could not be connected to in time, or did not answer in time) classify as `Retryable`, like
   502 and 504; before, they fell back to the next provider at once. 521/523 (origin down or unreachable) and 525/526 (TLS) still fall

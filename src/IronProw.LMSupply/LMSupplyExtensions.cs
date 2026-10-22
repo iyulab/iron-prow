@@ -1,4 +1,5 @@
 using IronProw.Core;
+using LMSupply.Generator;
 using LMSupply.Generator.Abstractions;
 using Microsoft.Extensions.AI;
 
@@ -12,7 +13,7 @@ public static class LMSupplyExtensions
     /// <summary>
     /// Registers a <see cref="ProviderKind.Local"/> candidate backed by a raw lm-supply
     /// <see cref="ITextGenerator"/>. The generator is bridged to <see cref="IChatClient"/> via
-    /// <see cref="GeneratorChatClient"/> and wrapped in a <see cref="LocalSafetyChatClient"/>, so
+    /// LMSupply's <c>AsChatClient()</c> (<see cref="LocalChatClient"/>) and wrapped in a <see cref="LocalSafetyChatClient"/>, so
     /// consumers need only supply the loaded generator — no hand-rolled bridge.
     /// </summary>
     /// <param name="builder">The iron-prow builder.</param>
@@ -45,7 +46,7 @@ public static class LMSupplyExtensions
         ArgumentNullException.ThrowIfNull(probe);
         var safetyOptions = options ?? new LocalSafetyOptions();
         return builder.AddProvider(id, ProviderKind.Local, priority,
-            _ => new LocalSafetyChatClient(new GeneratorChatClient(generator), safetyOptions, probe));
+            _ => new LocalSafetyChatClient(generator.AsChatClient(), safetyOptions, probe));
     }
 
     /// <summary>
@@ -58,7 +59,7 @@ public static class LMSupplyExtensions
     /// <param name="rawClient">
     /// Pre-bridged <see cref="IChatClient"/> backed by lm-supply. Prefer the
     /// <see cref="AddLMSupplyLocal(IronProwBuilder, string, int, ITextGenerator, IReadinessProbe, LocalSafetyOptions?)"/>
-    /// overload, which bridges a raw <see cref="ITextGenerator"/> via <see cref="GeneratorChatClient"/> and
+    /// overload, which bridges a raw <see cref="ITextGenerator"/> via LMSupply's <c>AsChatClient()</c> (<see cref="LocalChatClient"/>) and
     /// removes the need for consumers to hand-roll the bridge. This overload remains for callers that
     /// already hold a bridged client (e.g. ironhive-host's own adapter).
     /// </param>
@@ -84,7 +85,7 @@ public static class LMSupplyExtensions
     /// <summary>
     /// Builds a guarded local <see cref="IChatClient"/> for a <em>single</em> lm-supply provider,
     /// without any gateway. The raw <see cref="ITextGenerator"/> is bridged via
-    /// <see cref="GeneratorChatClient"/> and wrapped in a <see cref="LocalSafetyChatClient"/>
+    /// LMSupply's <c>AsChatClient()</c> (<see cref="LocalChatClient"/>) and wrapped in a <see cref="LocalSafetyChatClient"/>
     /// (readiness gate + length-bounding), returning a plain <see cref="IChatClient"/>.
     /// <para>
     /// Use this when a consumer runs local-first with no second fallback candidate: the gateway's
@@ -107,6 +108,6 @@ public static class LMSupplyExtensions
     {
         ArgumentNullException.ThrowIfNull(generator);
         ArgumentNullException.ThrowIfNull(probe);
-        return new LocalSafetyChatClient(new GeneratorChatClient(generator), options ?? new LocalSafetyOptions(), probe);
+        return new LocalSafetyChatClient(generator.AsChatClient(), options ?? new LocalSafetyOptions(), probe);
     }
 }

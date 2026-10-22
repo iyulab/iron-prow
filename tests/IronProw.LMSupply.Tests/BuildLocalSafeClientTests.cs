@@ -22,7 +22,7 @@ public class BuildLocalSafeClientTests
 
         client.Should().NotBeNull();
         client.Should().BeOfType<LocalSafetyChatClient>(
-            "the lightweight path wraps the GeneratorChatClient bridge in the safety decorator");
+            "the lightweight path wraps LMSupply's chat client in the safety decorator");
     }
 
     [Fact]

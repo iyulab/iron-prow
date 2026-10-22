@@ -118,7 +118,7 @@ if (why is null && probe.Lists("grok-4"))
 
 ### B. Local-provider safety (lm-supply / ONNX / DirectML)
 
-로컬 추론을 iron-prow 안전 레이어로 감싼다. lm-supply 생성자(`IGeneratorModel`/`ITextGenerator`)를 **그대로** 넘기면 iron-prow가 내부 `GeneratorChatClient` 브리지로 `IChatClient`에 적응시킨다 — 소비자가 브리지를 직접 작성할 필요가 없다.
+로컬 추론을 iron-prow 안전 레이어로 감싼다. lm-supply 생성자(`IGeneratorModel`/`ITextGenerator`)를 **그대로** 넘기면 iron-prow가 LMSupply의 `generator.AsChatClient()`(`LMSupply.Generator.LocalChatClient`)로 `IChatClient`에 적응시킨다 — 소비자가 브리지를 직접 작성할 필요가 없다.
 
 ```csharp
 using IronProw.Core;
@@ -150,7 +150,7 @@ IChatClient chat = provider.GetRequiredService<IChatClient>();
 ```
 
 `AddLMSupplyLocal`이 제공하는 safety(호출마다 이 순서로 적용):
-- **bridge** — `GeneratorChatClient`가 lm-supply 생성자를 `IChatClient`로 적응(role 매핑, `MaxOutputTokens`→`MaxNewTokens`, sampler/tool 전파, streaming flatten). 이미 브리지된 `IChatClient`를 보유한 호출자(예: ironhive-host)는 `AddLMSupplyLocal(..., IChatClient rawClient, ...)` 오버로드를 쓸 수 있다.
+- **bridge** — LMSupply의 `AsChatClient()`가 생성자를 `IChatClient`로 적응(role 매핑, `MaxOutputTokens`→`MaxNewTokens`, sampler/tool 전파, streaming, reasoning). 이미 브리지된 `IChatClient`를 보유한 호출자(예: ironhive-host)는 `AddLMSupplyLocal(..., IChatClient rawClient, ...)` 오버로드를 쓸 수 있다.
 - **readiness gate** — `IReadinessProbe.IsReadyAsync` 가 false 면 `InvalidOperationException`. 게이트웨이는 이것을 그 provider 의 실패로 보고 다음 provider 로 넘어간다.
 - **model-ID preflight** — `ChatOptions.ModelId` 가 **지정된 호출만** `IReadinessProbe.GetAvailableModelIdsAsync` 에 그 id 가 있는지 검증한다(없으면 `InvalidOperationException`). ⚠ 게이트웨이는 같은 `ChatOptions` 를 모든 provider 에 넘기므로, frontier 모델 id 를 지정한 호출이 local provider 로 fallback 되면 preflight 에서 실패하고 그 provider 의 건강 기록에도 실패로 남는다 — 혼합 게이트웨이에서는 `ModelId` 를 비워 두고 provider 별 기본 모델을 쓴다.
 - **length-bounding** — `LocalSafetyOptions.DefaultMaxOutputTokens` (미설정 호출에 자동 적용, 기본 512)
