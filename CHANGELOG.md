@@ -16,6 +16,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
   `AddIronHiveGpuStack`'s `configure` setting `config.Path = "/v1-openai/"`.
 
 ### Dependencies
+- `Microsoft.Extensions.AI` / `.Abstractions` 10.10.x -> 10.11.0 (the floor LMSupply.Generator 0.136.0 requires).
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.123.0 -> 0.124.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.124.0 -> 0.125.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.125.0 -> 0.126.0.
