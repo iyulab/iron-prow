@@ -24,6 +24,12 @@ public class HttpStatusClassificationTests
     [InlineData(500, ErrorClassification.Retryable)]
     [InlineData(502, ErrorClassification.Retryable)]
     [InlineData(504, ErrorClassification.Retryable)]
+    [InlineData(520, ErrorClassification.Retryable)] // Cloudflare: unknown origin error
+    [InlineData(522, ErrorClassification.Retryable)] // Cloudflare: origin connect timeout
+    [InlineData(524, ErrorClassification.Retryable)] // Cloudflare: origin response timeout
+    [InlineData(521, ErrorClassification.FallbackEligible)] // Cloudflare: origin down - not on a retry's time scale
+    [InlineData(523, ErrorClassification.FallbackEligible)] // Cloudflare: origin unreachable
+    [InlineData(526, ErrorClassification.FallbackEligible)] // Cloudflare: invalid origin certificate
     [InlineData(429, ErrorClassification.FallbackEligible)] // no retry hint: a blind retry rarely outlasts a rate limit
     [InlineData(503, ErrorClassification.FallbackEligible)]
     [InlineData(400, ErrorClassification.FallbackEligible)]

@@ -6,6 +6,10 @@ namespace IronProw.Core;
 /// <list type="table">
 /// <listheader><term>Status</term><description>Classification</description></listheader>
 /// <item><term>408, 500, 502, 504</term><description><see cref="ErrorClassification.Retryable"/> — a transient fault on the same provider.</description></item>
+/// <item><term>520, 522, 524</term><description><see cref="ErrorClassification.Retryable"/> — a CDN in front of the provider (Cloudflare)
+/// reporting that the origin answered nothing usable (520), could not be connected to in time (522) or did not answer in time (524):
+/// the gateway timeouts of a fronted endpoint. 521 and 523 (origin down or unreachable) and 525/526 (TLS to the origin) are not —
+/// they do not clear on the time scale of a retry and fall through to the row below.</description></item>
 /// <item><term>429, 503, 529</term><description><see cref="ErrorClassification.Retryable"/> when the provider sent a retry hint
 /// (<see cref="ResilienceChatClient"/> waits it, up to <see cref="ResilienceOptions.MaxRetryAfter"/>); otherwise
 /// <see cref="ErrorClassification.FallbackEligible"/> — a capacity signal with no end in sight is not worth a blind retry.</description></item>
@@ -73,6 +77,8 @@ public sealed class DefaultErrorClassifier : IErrorClassifier
     private static ErrorClassification ByStatus(HttpFailure failure) => failure.StatusCode switch
     {
         408 or 500 or 502 or 504 => ErrorClassification.Retryable,
+        // Cloudflare in front of the provider: unknown origin error, origin connect timeout, origin response timeout.
+        520 or 522 or 524 => ErrorClassification.Retryable,
         // 529: Anthropic «overloaded», the same capacity signal as 503.
         429 or 503 or 529 => failure.RetryAfter is null ? ErrorClassification.FallbackEligible : ErrorClassification.Retryable,
         _ => ErrorClassification.FallbackEligible

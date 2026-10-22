@@ -210,6 +210,7 @@ services.AddIronProw()
 | 상태 | 분류 |
 |---|---|
 | 408 · 500 · 502 · 504 | 같은 provider 에서 retry |
+| 520 · 522 · 524 | 같은 provider 에서 retry — provider 앞단 CDN(Cloudflare)의 게이트웨이 타임아웃(origin 응답 없음·연결 시간 초과·응답 시간 초과). 521 · 523(origin 다운·도달 불가) · 525 · 526(TLS)은 아래 «그 밖» |
 | 429 · 503 | provider 가 retry 힌트(`Retry-After` / `retry-after-ms`)를 보냈으면 그만큼 기다려 retry(`MaxRetryAfter` 초과면 retry 없이 다음 provider), 없으면 즉시 다음 provider |
 | 그 밖(400 · 401 · 403 · 404 · 409 …) | 다음 provider (한 provider 의 거절은 다른 provider 도 거절한다는 증거가 아니다) |
 

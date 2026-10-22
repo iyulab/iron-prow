@@ -7,6 +7,10 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ## [Unreleased]
 
 ### Changed
+- **A gateway timeout from a CDN in front of the provider is retried on the same provider.** HTTP 520, 522 and 524 (Cloudflare:
+  the origin answered nothing usable, could not be connected to in time, or did not answer in time) classify as `Retryable`, like
+  502 and 504; before, they fell back to the next provider at once. 521/523 (origin down or unreachable) and 525/526 (TLS) still fall
+  back. Agents that classify through `DefaultErrorClassifier` (IronHive.Agent's error recovery) retry these too.
 - **Breaking** — **`AddIronHiveGpuStack` and the `gpustack` BYO preset call GPUStack's standard `/v1/`** (IronHive 0.68.0), not
   `/v1-openai/`. GPUStack answers both the same. Migration: a GPUStack 0.x server with nothing at `/v1/` is reached with
   `AddIronHiveGpuStack`'s `configure` setting `config.Path = "/v1-openai/"`.
