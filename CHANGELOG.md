@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [Unreleased]
+## [0.18.0] - 2026-10-24
 
 ### Changed
 - **Breaking** — **the FluxGuard guard judges the images of a request, not only its text.** `FluxGuardGuard` (what
@@ -19,6 +19,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ### Dependencies
 - Re-pinned sibling package(s) `FluxGuard` 0.25.1 -> 0.26.0 (input parts).
 - `System.ClientModel` 1.14.0 -> 1.16.0. Test tooling: xunit.v3 4.0.2, MTP HangDump 2.5.1.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.69.0 -> 0.70.0, `IronHive.Providers.Anthropic` 0.69.0 -> 0.70.0, `IronHive.Providers.GoogleAI` 0.69.0 -> 0.70.0, `IronHive.Providers.OpenAI` 0.69.0 -> 0.70.0, `IronHive.Providers.OpenAI.Compatible` 0.69.0 -> 0.70.0.
 
 ## [0.17.0] - 2026-10-23
 
