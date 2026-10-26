@@ -9,6 +9,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ### Dependencies
 - Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.70.0 -> 0.71.0, `IronHive.Providers.Anthropic` 0.70.0 -> 0.71.0, `IronHive.Providers.GoogleAI` 0.70.0 -> 0.71.0, `IronHive.Providers.OpenAI` 0.70.0 -> 0.71.0, `IronHive.Providers.OpenAI.Compatible` 0.70.0 -> 0.71.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.136.0 -> 0.137.0. LMSupply 0.137.0 changes the token estimate it falls back to when a local server reports no usage: Korean text now counts about 2.5x more tokens than before, English slightly fewer, digits more.
+- Re-pinned third-party packages: 5 .NET servicing pins (Microsoft.Extensions) 10.0.13 -> 10.0.14 (the 10.0.14 security servicing release).
 
 ## [0.18.0] - 2026-10-24
 
