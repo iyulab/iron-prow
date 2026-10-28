@@ -12,6 +12,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 - Re-pinned third-party packages: 5 .NET servicing pins (Microsoft.Extensions) 10.0.13 -> 10.0.14 (the 10.0.14 security servicing release).
 - Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.71.0 -> 0.72.0, `IronHive.Providers.Anthropic` 0.71.0 -> 0.72.0, `IronHive.Providers.GoogleAI` 0.71.0 -> 0.72.0, `IronHive.Providers.OpenAI` 0.71.0 -> 0.72.0, `IronHive.Providers.OpenAI.Compatible` 0.71.0 -> 0.72.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.137.0 -> 0.138.0.
+- Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.72.0 -> 0.73.0, `IronHive.Providers.Anthropic` 0.72.0 -> 0.73.0, `IronHive.Providers.GoogleAI` 0.72.0 -> 0.73.0, `IronHive.Providers.OpenAI` 0.72.0 -> 0.73.0, `IronHive.Providers.OpenAI.Compatible` 0.72.0 -> 0.73.0.
 
 ## [0.18.0] - 2026-10-24
 
