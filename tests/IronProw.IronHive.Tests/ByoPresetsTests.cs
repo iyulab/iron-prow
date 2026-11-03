@@ -184,6 +184,32 @@ public class ByoPresetsTests
     }
 
     [Fact]
+    public async Task ProbeChat_speaks_each_wire_the_gateway_registration_speaks()
+    {
+        // The helper builds one client per wire; the OpenAI-compatible path is covered above, these pin the Anthropic and
+        // GPUStack ones (a chat request reaches the wire's own route and a refusal there is ChatRefused).
+        const string anthropicAnswer =
+            """{"id":"msg_1","type":"message","role":"assistant","model":"m1","content":[{"type":"text","text":"pong"}],"stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":1,"output_tokens":1}}""";
+        using var anthropic = StubServer.Start(request =>
+            request.HttpMethod == "POST" && request.Url!.AbsolutePath == "/v1/messages"
+                ? (200, anthropicAnswer)
+                : (404, """{"type":"error","error":{"type":"not_found_error","message":"no such route"}}"""));
+        var anthropicOk = await ByoPresets.ProbeChatAsync(new ByoEndpoint("anthropic", anthropic.BaseUrl, "k"), "m1", cancellationToken: Ct);
+        anthropicOk.Ok.Should().BeTrue();
+        anthropic.Paths.Should().Equal("/v1/messages");
+
+        using var wrong = StubServer.Start(_ => (404, """{"type":"error","error":{"type":"not_found_error","message":"no such route"}}"""));
+        var anthropicRefused = await ByoPresets.ProbeChatAsync(new ByoEndpoint("anthropic", wrong.BaseUrl, "k"), "m1", cancellationToken: Ct);
+        anthropicRefused.Failure.Should().Be(ByoProbeFailure.ChatRefused);
+        anthropicRefused.StatusCode.Should().Be(404);
+
+        using var gpuStack = StubServer.Start(request => request.HttpMethod == "POST" ? (200, ChatAnswer) : (404, "{}"));
+        var gpuStackOk = await ByoPresets.ProbeChatAsync(new ByoEndpoint("gpustack", gpuStack.BaseUrl, "k"), "m1", cancellationToken: Ct);
+        gpuStackOk.Ok.Should().BeTrue();
+        gpuStack.Paths.Should().ContainSingle().Which.Should().EndWith("/chat/completions");
+    }
+
+    [Fact]
     public async Task ProbeChat_contacts_nothing_for_an_endpoint_that_fails_validation_and_requires_a_model()
     {
         var invalid = await ByoPresets.ProbeChatAsync(new ByoEndpoint("openai"), "m1", cancellationToken: Ct);
