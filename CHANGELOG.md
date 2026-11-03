@@ -6,6 +6,12 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 
 ## [Unreleased]
 
+### Added
+- **`ByoPresets.ProbeChatAsync(endpoint, modelId)` checks the route the product will really use.** `ProbeAsync` proves a key and a model list; a gateway that lists models at the address the user typed but takes chat only under another prefix (for example `/openai/v1`) passed it and then refused every chat. `ProbeChatAsync` sends one minimal completion on the named model (a one-word prompt, the answer capped at `ByoPresets.ChatProbeMaxOutputTokens` = 16 tokens, no SDK retries) through the same client `AddIronHiveByo` would register, and reports a refused chat as the new `ByoProbeFailure.ChatRefused` (HTTP 4xx other than 401, 402, 403, 408, 429), apart from `Unauthorized`, `HttpStatus`, `Timeout` and the transport kinds; `Error` is the provider's sentence, which can name the address to use. Opt-in: `ProbeAsync` is unchanged and still a catalog call.
+
+### Fixed
+- **A probe against an endpoint that answers 429 or 402 now reports the status.** The rate-limit and billing refusals reach the probe as ironhive's own exception types, which `StatusCode` did not read, so `StatusCode` was null and `Failure` was not `HttpStatus`; they now read as 429 and 402 (`HttpStatus`).
+
 ### Dependencies
 - Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.70.0 -> 0.71.0, `IronHive.Providers.Anthropic` 0.70.0 -> 0.71.0, `IronHive.Providers.GoogleAI` 0.70.0 -> 0.71.0, `IronHive.Providers.OpenAI` 0.70.0 -> 0.71.0, `IronHive.Providers.OpenAI.Compatible` 0.70.0 -> 0.71.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.136.0 -> 0.137.0. LMSupply 0.137.0 changes the token estimate it falls back to when a local server reports no usage: Korean text now counts about 2.5x more tokens than before, English slightly fewer, digits more.

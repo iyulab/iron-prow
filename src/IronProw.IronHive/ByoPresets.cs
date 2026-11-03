@@ -95,6 +95,13 @@ public enum ByoProbeFailure
 
     /// <summary>What the user entered failed <see cref="ByoPresets.Validate"/>; nothing was contacted.</summary>
     Invalid = 8,
+
+    /// <summary>
+    /// <see cref="ByoPresets.ProbeChatAsync"/> only: the endpoint answered the chat request with a client error that is not a
+    /// credential refusal (a route that does not exist under that address, a method or a body it does not accept, a model
+    /// it does not serve; HTTP 4xx except 401, 402, 403, 408 and 429). The model list may well have answered.
+    /// </summary>
+    ChatRefused = 9,
 }
 
 /// <summary>The outcome of <see cref="ByoPresets.ProbeAsync"/>.</summary>
@@ -296,6 +303,107 @@ public static class ByoPresets
         }
     }
 
+    /// <summary>
+    /// Checks the route the product will really use: one minimal chat completion on <paramref name="modelId"/>, sent through
+    /// the same client <see cref="AddIronHiveByo"/> would register, with the key and headers the user entered.
+    /// <see cref="ProbeAsync"/> answers "is something there, and does it accept this key"; this answers "does it accept a chat
+    /// for this model", which is what a person means by "connected". A gateway that serves its model list at the address
+    /// the user typed but takes chat only under another prefix passes <see cref="ProbeAsync"/> and fails here as
+    /// <see cref="ByoProbeFailure.ChatRefused"/>.
+    /// </summary>
+    /// <remarks>
+    /// Opt-in because it costs a request that generates: the prompt is one word and the answer is capped at
+    /// <see cref="ChatProbeMaxOutputTokens"/> tokens, which a hosted model bills as a few tokens. One request, no retries,
+    /// like <see cref="ProbeAsync"/>. The result reuses <see cref="ByoProbeResult"/>: <see cref="ByoProbeResult.Ok"/> means
+    /// the chat was accepted (<see cref="ByoProbeResult.ModelIds"/> is empty - call <see cref="ProbeAsync"/> for the list),
+    /// <see cref="ByoProbeResult.Error"/> is the provider's sentence as for <see cref="ProbeAsync"/> (it can name the address
+    /// to use; it is the provider's text, so an application decides whether to show it). A model that needs more than
+    /// <see cref="ChatProbeMaxOutputTokens"/> output tokens to answer at all (some reasoning models) is refused by its
+    /// provider with a client error and shows up as <see cref="ByoProbeFailure.ChatRefused"/>; pass a model that answers.
+    /// </remarks>
+    /// <param name="endpoint">What the user entered.</param>
+    /// <param name="modelId">The model the product will chat with.</param>
+    /// <param name="timeout">How long to wait for the answer. Default: 30 seconds (a local model may load first).</param>
+    /// <param name="cancellationToken">Cancels the check; cancellation is thrown, not reported as a failure.</param>
+    public static async Task<ByoProbeResult> ProbeChatAsync(ByoEndpoint endpoint, string modelId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+        ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
+        if (Validate(endpoint) is { } invalid)
+        {
+            return ByoProbeResult.Failed(ByoProbeFailure.Invalid, null, invalid);
+        }
+
+        var budget = timeout ?? TimeSpan.FromSeconds(30);
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutSource.CancelAfter(budget);
+        try
+        {
+            using var client = CreateProbeChatClient(endpoint, Find(endpoint.Preset)!, modelId.Trim());
+            await client.GetResponseAsync(
+                [new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.User, "ping")],
+                new Microsoft.Extensions.AI.ChatOptions { MaxOutputTokens = ChatProbeMaxOutputTokens },
+                timeoutSource.Token).ConfigureAwait(false);
+            return new ByoProbeResult(true, [], null, null);
+        }
+        catch (Exception) when (timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            return ByoProbeResult.Failed(ByoProbeFailure.Timeout, null, $"No answer within {budget.TotalSeconds:0.#} s.");
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            var status = StatusOf(ex);
+            return ByoProbeResult.Failed(ChatFailureOf(ex, status), status, ErrorOf(ex));
+        }
+    }
+
+    /// <summary>The cap on the answer <see cref="ProbeChatAsync"/> asks for.</summary>
+    public const int ChatProbeMaxOutputTokens = 16;
+
+    // A refusal of the chat itself: a client error that is not about the credential (401/403), the clock (408) or the
+    // rate (429). The same transport and credential classification as the model-list probe otherwise.
+    internal static ByoProbeFailure ChatFailureOf(Exception exception, int? status) =>
+        status is >= 400 and < 500 and not (401 or 402 or 403 or 408 or 429)
+            ? ByoProbeFailure.ChatRefused
+            : FailureOf(exception, status);
+
+    // One chat request with the SDK's retries off, through the client the gateway registration would build.
+    private static global::IronHive.Extensions.AI.ChatClientAdapter CreateProbeChatClient(ByoEndpoint endpoint, ByoPreset preset, string modelId)
+    {
+        var entered = Entered.Of(endpoint);
+        global::IronHive.Abstractions.Messages.IMessageGenerator generator;
+        switch (preset.Wire)
+        {
+            case ByoWire.OpenAI:
+                var openAI = new OpenAIConfig { MaxRetries = 0 };
+                ConfigureOpenAI(openAI, entered);
+                generator = new global::IronHive.Providers.OpenAI.Compatible.ChatCompletion.ChatCompletionMessageGenerator(openAI);
+                break;
+            case ByoWire.Anthropic:
+                var anthropic = new AnthropicConfig { MaxRetries = 0 };
+                ConfigureAnthropic(anthropic, entered);
+                generator = new AnthropicMessageGenerator(anthropic);
+                break;
+            case ByoWire.GoogleAI:
+                var google = new GoogleAIConfig();
+                ConfigureGoogleAI(google, entered, new Google.GenAI.Types.HttpRetryOptions { Attempts = 1 });
+                generator = new GoogleAIMessageGenerator(google);
+                break;
+            case ByoWire.GpuStack:
+                var gpuStack = new GpuStackConfig { MaxRetries = 0 };
+                ConfigureGpuStack(gpuStack, entered);
+                generator = new OpenAICompatibleMessageGenerator(gpuStack.ToOpenAICompatible());
+                break;
+            default:
+                var compatible = CompatibleConfig(preset, entered);
+                compatible.MaxRetries = 0;
+                generator = new OpenAICompatibleMessageGenerator(compatible);
+                break;
+        }
+
+        return new global::IronHive.Extensions.AI.ChatClientAdapter(generator, modelId, preset.Id);
+    }
+
     // The kind is read from the exception chain, where every SDK keeps the transport's own exception: the status of a
     // refusal, the socket error of a failed connect, or the handler's connect timeout.
     internal static ByoProbeFailure FailureOf(Exception exception, int? status)
@@ -480,6 +588,10 @@ public static class ByoPresets
     private static int? StatusOf(Exception exception) => exception switch
     {
         HttpRequestException { StatusCode: { } status } => (int)status,
+        // A rate limit or an overload is a ProviderResponseException (not an HTTP exception): its equivalent status is the signal.
+        global::IronHive.Abstractions.Exceptions.ProviderResponseException { EquivalentStatusCode: { } equivalent } => (int)equivalent,
+        global::IronHive.Abstractions.Exceptions.RateLimitException => 429,
+        global::IronHive.Abstractions.Exceptions.BillingException => 402,
         _ when exception.InnerException is { } inner => StatusOf(inner),
         _ => null,
     };

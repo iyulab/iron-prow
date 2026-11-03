@@ -110,6 +110,89 @@ public class ByoPresetsTests
         refused.Error.Should().Be("Incorrect API key provided", "the provider's sentence, not the SDK's headline");
     }
 
+    private const string ChatAnswer =
+        """{"id":"c1","object":"chat.completion","created":0,"model":"m1","choices":[{"index":0,"message":{"role":"assistant","content":"pong"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}""";
+
+    [Fact]
+    public async Task ProbeChat_catches_a_gateway_that_lists_models_at_one_address_but_takes_chat_under_another()
+    {
+        // The catalog is served at the address the user typed; chat only under /openai/v1 - the shape of a gateway that fronts
+        // several vendors behind one catalog. ProbeAsync is green; ProbeChatAsync says the chat route refuses.
+        using var server = StubServer.Start(request => (request.HttpMethod, request.Url!.AbsolutePath) switch
+        {
+            ("GET", "/v1/models") => (200, """{"object":"list","data":[{"id":"m1","object":"model","created":0,"owned_by":"x"}]}"""),
+            ("POST", "/openai/v1/chat/completions") => (200, ChatAnswer),
+            _ => (404, """{"error":{"message":"Use the /openai/v1 prefix for chat completions","type":"invalid_request_error"}}"""),
+        });
+        var endpoint = new ByoEndpoint("custom", server.BaseUrl, "k");
+
+        var catalog = await ByoPresets.ProbeAsync(endpoint, cancellationToken: Ct);
+        var chat = await ByoPresets.ProbeChatAsync(endpoint, "m1", cancellationToken: Ct);
+        var fixedChat = await ByoPresets.ProbeChatAsync(endpoint with { BaseUrl = server.BaseUrl + "/openai/v1" }, "m1", cancellationToken: Ct);
+
+        catalog.Ok.Should().BeTrue("the model list answers - the weaker question");
+        chat.Ok.Should().BeFalse();
+        chat.Failure.Should().Be(ByoProbeFailure.ChatRefused);
+        chat.StatusCode.Should().Be(404);
+        chat.Error.Should().Be("Use the /openai/v1 prefix for chat completions", "the provider's sentence, as ProbeAsync reports it");
+        chat.ModelIds.Should().BeEmpty();
+        fixedChat.Ok.Should().BeTrue();
+        fixedChat.Failure.Should().BeNull();
+        server.Paths.Count(p => p == "/v1/chat/completions").Should().Be(1, "one request, no SDK retry loop");
+    }
+
+    [Fact]
+    public async Task ProbeChat_sends_one_word_to_the_named_model_with_a_small_cap_and_the_key()
+    {
+        string? body = null;
+        string? authorization = null;
+        using var server = StubServer.Start(request =>
+        {
+            body = new StreamReader(request.InputStream).ReadToEnd();
+            authorization = request.Headers["Authorization"];
+            return (200, ChatAnswer);
+        });
+
+        var result = await ByoPresets.ProbeChatAsync(new ByoEndpoint("custom", server.BaseUrl, "good"), " m1 ", cancellationToken: Ct);
+
+        result.Ok.Should().BeTrue();
+        authorization.Should().Be("Bearer good");
+        body.Should().Contain("\"model\":\"m1\"").And.Contain("ping").And.Contain($":{ByoPresets.ChatProbeMaxOutputTokens}");
+    }
+
+    [Theory]
+    [InlineData(401, ByoProbeFailure.Unauthorized)]
+    [InlineData(403, ByoProbeFailure.Unauthorized)]
+    [InlineData(400, ByoProbeFailure.ChatRefused)]
+    [InlineData(404, ByoProbeFailure.ChatRefused)]
+    [InlineData(405, ByoProbeFailure.ChatRefused)]
+    [InlineData(422, ByoProbeFailure.ChatRefused)]
+    [InlineData(402, ByoProbeFailure.HttpStatus)]
+    [InlineData(429, ByoProbeFailure.HttpStatus)]
+    [InlineData(500, ByoProbeFailure.HttpStatus)]
+    [InlineData(503, ByoProbeFailure.HttpStatus)]
+    public async Task ProbeChat_names_a_refused_chat_apart_from_a_bad_key_and_a_server_that_is_busy_or_down(int status, ByoProbeFailure expected)
+    {
+        using var server = StubServer.Start(_ => (status, """{"error":{"message":"no","type":"x"}}"""));
+
+        var result = await ByoPresets.ProbeChatAsync(new ByoEndpoint("custom", server.BaseUrl, "k"), "m1", cancellationToken: Ct);
+
+        result.Ok.Should().BeFalse();
+        result.StatusCode.Should().Be(status);
+        result.Failure.Should().Be(expected);
+        server.Paths.Should().ContainSingle("one request per status, no retry");
+    }
+
+    [Fact]
+    public async Task ProbeChat_contacts_nothing_for_an_endpoint_that_fails_validation_and_requires_a_model()
+    {
+        var invalid = await ByoPresets.ProbeChatAsync(new ByoEndpoint("openai"), "m1", cancellationToken: Ct);
+        invalid.Failure.Should().Be(ByoProbeFailure.Invalid);
+
+        var act = () => ByoPresets.ProbeChatAsync(new ByoEndpoint("custom", "http://127.0.0.1:1"), " ", cancellationToken: Ct);
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
     [Fact]
     public async Task Probe_of_a_proxy_answering_in_plain_text_reports_what_it_said()
     {
