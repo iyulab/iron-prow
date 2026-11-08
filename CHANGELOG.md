@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [Unreleased]
+## [0.19.0] - 2026-11-09
 
 ### Added
 - **`ByoPresets.ProbeChatAsync(endpoint, modelId)` checks the route the product will really use.** `ProbeAsync` proves a key and a model list; a gateway that lists models at the address the user typed but takes chat only under another prefix (for example `/openai/v1`) passed it and then refused every chat. `ProbeChatAsync` sends one minimal completion on the named model (a one-word prompt, the answer capped at `ByoPresets.ChatProbeMaxOutputTokens` = 16 tokens, no SDK retries) through the same client `AddIronHiveByo` would register, and reports a refused chat as the new `ByoProbeFailure.ChatRefused` (HTTP 4xx other than 401, 402, 403, 408, 429), apart from `Unauthorized`, `HttpStatus`, `Timeout` and the transport kinds; `Error` is the provider's sentence, which can name the address to use. Opt-in: `ProbeAsync` is unchanged and still a catalog call.
