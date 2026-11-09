@@ -97,7 +97,7 @@ public enum ByoProbeFailure
     Invalid = 8,
 
     /// <summary>
-    /// <see cref="ByoPresets.ProbeChatAsync"/> only: the endpoint answered the chat request with a client error that is not a
+    /// <see cref="ByoPresets.ProbeChatAsync(ByoEndpoint, string, TimeSpan?, CancellationToken)"/> only: the endpoint answered the chat request with a client error that is not a
     /// credential refusal (a route that does not exist under that address, a method or a body it does not accept, a model
     /// it does not serve; HTTP 4xx except 401, 402, 403, 408 and 429). The model list may well have answered.
     /// </summary>
@@ -313,21 +313,39 @@ public static class ByoPresets
     /// </summary>
     /// <remarks>
     /// Opt-in because it costs a request that generates: the prompt is one word and the answer is capped at
-    /// <see cref="ChatProbeMaxOutputTokens"/> tokens, which a hosted model bills as a few tokens. One request, no retries,
-    /// like <see cref="ProbeAsync"/>. The result reuses <see cref="ByoProbeResult"/>: <see cref="ByoProbeResult.Ok"/> means
+    /// <see cref="ChatProbeMaxOutputTokens"/> tokens, which a hosted model bills as a few tokens. One request, no SDK
+    /// retries, like <see cref="ProbeAsync"/> - with one exception: a refusal that may be about the cap itself (HTTP 400 or
+    /// 422, the statuses a provider uses for a body it rejects; a model that must think before it answers is refused under a
+    /// small cap) is asked once more under <see cref="ChatProbeRetryMaxOutputTokens"/> tokens, and the retry's outcome is the
+    /// result - so <see cref="ByoProbeResult.Ok"/> always means a completion really happened, and a model that answers is
+    /// never reported as refused only because it could not do so in sixteen tokens. A route or model refusal (404, 405) is
+    /// reported at once. The result reuses <see cref="ByoProbeResult"/>: <see cref="ByoProbeResult.Ok"/> means
     /// the chat was accepted (<see cref="ByoProbeResult.ModelIds"/> is empty - call <see cref="ProbeAsync"/> for the list),
     /// <see cref="ByoProbeResult.Error"/> is the provider's sentence as for <see cref="ProbeAsync"/> (it can name the address
-    /// to use; it is the provider's text, so an application decides whether to show it). A model that needs more than
-    /// <see cref="ChatProbeMaxOutputTokens"/> output tokens to answer at all (some reasoning models) is refused by its
-    /// provider with a client error and shows up as <see cref="ByoProbeFailure.ChatRefused"/>; pass a model that answers.
+    /// to use; it is the provider's text, so an application decides whether to show it).
     /// </remarks>
     /// <param name="endpoint">What the user entered.</param>
     /// <param name="modelId">The model the product will chat with.</param>
     /// <param name="timeout">How long to wait for the answer. Default: 30 seconds (a local model may load first).</param>
     /// <param name="cancellationToken">Cancels the check; cancellation is thrown, not reported as a failure.</param>
-    public static async Task<ByoProbeResult> ProbeChatAsync(ByoEndpoint endpoint, string modelId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    public static Task<ByoProbeResult> ProbeChatAsync(ByoEndpoint endpoint, string modelId, TimeSpan? timeout = null, CancellationToken cancellationToken = default) =>
+        ProbeChatAsync(endpoint, modelId, ChatProbeMaxOutputTokens, timeout, cancellationToken);
+
+    /// <summary>
+    /// <see cref="ProbeChatAsync(ByoEndpoint, string, TimeSpan?, CancellationToken)"/> with the cap of the first request chosen by the
+    /// caller - for a model known to need more (or a provider known to refuse the default) so that the first request is the
+    /// only one. The retry rule is unchanged; it is skipped when the first request already asks for
+    /// <see cref="ChatProbeRetryMaxOutputTokens"/> or more.
+    /// </summary>
+    /// <param name="endpoint">What the user entered.</param>
+    /// <param name="modelId">The model the product will chat with.</param>
+    /// <param name="maxOutputTokens">The cap on the answer of the first request; at least 1.</param>
+    /// <param name="timeout">How long to wait for the answer (both requests together). Default: 30 seconds.</param>
+    /// <param name="cancellationToken">Cancels the check; cancellation is thrown, not reported as a failure.</param>
+    public static async Task<ByoProbeResult> ProbeChatAsync(ByoEndpoint endpoint, string modelId, int maxOutputTokens, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxOutputTokens, 1);
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
         if (Validate(endpoint) is { } invalid)
         {
@@ -340,10 +358,19 @@ public static class ByoPresets
         try
         {
             using var client = CreateProbeChatClient(endpoint, Find(endpoint.Preset)!, modelId.Trim());
-            await client.GetResponseAsync(
-                [new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.User, "ping")],
-                new Microsoft.Extensions.AI.ChatOptions { MaxOutputTokens = ChatProbeMaxOutputTokens },
-                timeoutSource.Token).ConfigureAwait(false);
+            try
+            {
+                await AskAsync(client, maxOutputTokens, timeoutSource.Token).ConfigureAwait(false);
+            }
+            catch (Exception first) when (maxOutputTokens < ChatProbeRetryMaxOutputTokens
+                && !timeoutSource.IsCancellationRequested
+                && StatusOf(first) is 400 or 422)
+            {
+                // A refusal of the body may be the cap: ask again under a cap a model that thinks first can answer in. The
+                // retry decides - if it answers, the chat works; if it is refused too, that refusal is what is reported.
+                await AskAsync(client, ChatProbeRetryMaxOutputTokens, timeoutSource.Token).ConfigureAwait(false);
+            }
+
             return new ByoProbeResult(true, [], null, null);
         }
         catch (Exception) when (timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
@@ -357,8 +384,20 @@ public static class ByoPresets
         }
     }
 
-    /// <summary>The cap on the answer <see cref="ProbeChatAsync"/> asks for.</summary>
+    /// <summary>The cap on the answer <see cref="ProbeChatAsync(ByoEndpoint, string, TimeSpan?, CancellationToken)"/> asks for first.</summary>
     public const int ChatProbeMaxOutputTokens = 16;
+
+    /// <summary>
+    /// The cap of the one retry after a refusal that may be about the cap (HTTP 400 or 422). Above the smallest thinking budget
+    /// a provider accepts (1024), so a model that must think before it answers can; billed only for the tokens generated.
+    /// </summary>
+    public const int ChatProbeRetryMaxOutputTokens = 2048;
+
+    private static Task<Microsoft.Extensions.AI.ChatResponse> AskAsync(global::IronHive.Extensions.AI.ChatClientAdapter client, int maxOutputTokens, CancellationToken cancellationToken) =>
+        client.GetResponseAsync(
+            [new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.User, "ping")],
+            new Microsoft.Extensions.AI.ChatOptions { MaxOutputTokens = maxOutputTokens },
+            cancellationToken);
 
     // A refusal of the chat itself: a client error that is not about the credential (401/403), the clock (408) or the
     // rate (429). The same transport and credential classification as the model-list probe otherwise.

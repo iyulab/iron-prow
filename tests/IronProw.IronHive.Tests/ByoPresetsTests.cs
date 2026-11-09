@@ -161,17 +161,17 @@ public class ByoPresetsTests
     }
 
     [Theory]
-    [InlineData(401, ByoProbeFailure.Unauthorized)]
-    [InlineData(403, ByoProbeFailure.Unauthorized)]
-    [InlineData(400, ByoProbeFailure.ChatRefused)]
-    [InlineData(404, ByoProbeFailure.ChatRefused)]
-    [InlineData(405, ByoProbeFailure.ChatRefused)]
-    [InlineData(422, ByoProbeFailure.ChatRefused)]
-    [InlineData(402, ByoProbeFailure.HttpStatus)]
-    [InlineData(429, ByoProbeFailure.HttpStatus)]
-    [InlineData(500, ByoProbeFailure.HttpStatus)]
-    [InlineData(503, ByoProbeFailure.HttpStatus)]
-    public async Task ProbeChat_names_a_refused_chat_apart_from_a_bad_key_and_a_server_that_is_busy_or_down(int status, ByoProbeFailure expected)
+    [InlineData(401, ByoProbeFailure.Unauthorized, 1)]
+    [InlineData(403, ByoProbeFailure.Unauthorized, 1)]
+    [InlineData(400, ByoProbeFailure.ChatRefused, 2)] // may be the cap: asked once more under the larger one
+    [InlineData(404, ByoProbeFailure.ChatRefused, 1)]
+    [InlineData(405, ByoProbeFailure.ChatRefused, 1)]
+    [InlineData(422, ByoProbeFailure.ChatRefused, 2)]
+    [InlineData(402, ByoProbeFailure.HttpStatus, 1)]
+    [InlineData(429, ByoProbeFailure.HttpStatus, 1)]
+    [InlineData(500, ByoProbeFailure.HttpStatus, 1)]
+    [InlineData(503, ByoProbeFailure.HttpStatus, 1)]
+    public async Task ProbeChat_names_a_refused_chat_apart_from_a_bad_key_and_a_server_that_is_busy_or_down(int status, ByoProbeFailure expected, int requests)
     {
         using var server = StubServer.Start(_ => (status, """{"error":{"message":"no","type":"x"}}"""));
 
@@ -180,7 +180,77 @@ public class ByoPresetsTests
         result.Ok.Should().BeFalse();
         result.StatusCode.Should().Be(status);
         result.Failure.Should().Be(expected);
-        server.Paths.Should().ContainSingle("one request per status, no retry");
+        server.Paths.Should().HaveCount(requests, "one request per status, except a refusal of the body (400, 422), which is asked once more under a larger cap");
+    }
+
+    /// <summary>A provider that refuses a body whose output cap is below <paramref name="minimum"/> (a model that must think first), like an Anthropic thinking model or a reasoning endpoint.</summary>
+    private static StubServer MinimumCapServer(int minimum, List<int> caps) =>
+        StubServer.Start(request =>
+        {
+            var body = new StreamReader(request.InputStream).ReadToEnd();
+            var cap = int.Parse(System.Text.RegularExpressions.Regex.Match(body, @"""max_(?:completion_)?tokens"":(\d+)").Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            lock (caps)
+            {
+                caps.Add(cap);
+            }
+
+            return cap < minimum
+                ? (400, $$$"""{"error":{"message":"max_tokens must be at least {{{minimum}}} for this model","type":"invalid_request_error"}}""")
+                : (200, ChatAnswer);
+        });
+
+    [Fact]
+    public async Task ProbeChat_does_not_read_a_model_that_needs_room_to_think_as_refused()
+    {
+        var caps = new List<int>();
+        using var server = MinimumCapServer(minimum: 1100, caps);
+
+        var result = await ByoPresets.ProbeChatAsync(new ByoEndpoint("custom", server.BaseUrl, "k"), "thinker", cancellationToken: Ct);
+
+        result.Ok.Should().BeTrue("a completion really happened under the larger cap");
+        result.Failure.Should().BeNull();
+        caps.Should().Equal(ByoPresets.ChatProbeMaxOutputTokens, ByoPresets.ChatProbeRetryMaxOutputTokens);
+    }
+
+    [Fact]
+    public async Task ProbeChat_reports_the_retry_refusal_when_even_the_larger_cap_is_not_enough()
+    {
+        var caps = new List<int>();
+        using var server = MinimumCapServer(minimum: 100_000, caps);
+
+        var result = await ByoPresets.ProbeChatAsync(new ByoEndpoint("custom", server.BaseUrl, "k"), "never", cancellationToken: Ct);
+
+        result.Ok.Should().BeFalse("the provider text never decides - only a completed chat is Ok");
+        result.Failure.Should().Be(ByoProbeFailure.ChatRefused);
+        result.StatusCode.Should().Be(400);
+        caps.Should().Equal(ByoPresets.ChatProbeMaxOutputTokens, ByoPresets.ChatProbeRetryMaxOutputTokens);
+    }
+
+    [Fact]
+    public async Task ProbeChat_lets_the_caller_choose_the_first_cap_and_skips_the_retry_when_it_is_already_large()
+    {
+        var caps = new List<int>();
+        using var server = MinimumCapServer(minimum: 600, caps);
+        var endpoint = new ByoEndpoint("custom", server.BaseUrl, "k");
+
+        var enough = await ByoPresets.ProbeChatAsync(endpoint, "thinker", 1024, cancellationToken: Ct);
+        var large = await ByoPresets.ProbeChatAsync(endpoint, "thinker", ByoPresets.ChatProbeRetryMaxOutputTokens, cancellationToken: Ct);
+
+        enough.Ok.Should().BeTrue("the first request was already enough");
+        large.Ok.Should().BeTrue();
+        caps.Should().Equal(1024, ByoPresets.ChatProbeRetryMaxOutputTokens);
+
+        var low = await ByoPresets.ProbeChatAsync(endpoint, "thinker", 8, cancellationToken: Ct);
+        low.Ok.Should().BeTrue("8 is refused, the retry at the larger cap answers");
+        caps.Should().Equal(1024, ByoPresets.ChatProbeRetryMaxOutputTokens, 8, ByoPresets.ChatProbeRetryMaxOutputTokens);
+    }
+
+    [Fact]
+    public async Task ProbeChat_rejects_a_cap_below_one()
+    {
+        var act = () => ByoPresets.ProbeChatAsync(new ByoEndpoint("custom", "http://127.0.0.1:9", "k"), "m1", 0, cancellationToken: Ct);
+
+        await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
     }
 
     [Fact]

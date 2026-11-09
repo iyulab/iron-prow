@@ -6,6 +6,12 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 
 ## [Unreleased]
 
+### Fixed
+- **`ProbeChatAsync` no longer reports a model that needs room to think as `ChatRefused`.** The probe asked for 16 output tokens and read every client error as «chat refused», so a reasoning model whose provider rejects a small output cap looked unreachable although a real chat works. A refusal of the body (HTTP 400 or 422) is now asked once more under `ByoPresets.ChatProbeRetryMaxOutputTokens` (2048) tokens and the retry's outcome is the result: `Ok` means a completion really happened, and a model that is refused under both caps is still `ChatRefused`. A route or model refusal (404, 405) is reported at once, as before, in one request.
+
+### Added
+- **`ProbeChatAsync(endpoint, modelId, maxOutputTokens, ...)` lets the caller choose the first cap.** For a model known to need more room, so the first request is the only one; the retry is skipped when the first cap is already `ChatProbeRetryMaxOutputTokens` or more.
+
 ### Dependencies
 - Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.75.0 -> 0.76.0, `IronHive.Providers.Anthropic` 0.75.0 -> 0.76.0, `IronHive.Providers.GoogleAI` 0.75.0 -> 0.76.0, `IronHive.Providers.OpenAI` 0.75.0 -> 0.76.0, `IronHive.Providers.OpenAI.Compatible` 0.75.0 -> 0.76.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.139.0 -> 0.140.0.
