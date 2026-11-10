@@ -15,6 +15,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ### Dependencies
 - Re-pinned sibling package(s) `IronHive.Extensions.AI` 0.75.0 -> 0.76.0, `IronHive.Providers.Anthropic` 0.75.0 -> 0.76.0, `IronHive.Providers.GoogleAI` 0.75.0 -> 0.76.0, `IronHive.Providers.OpenAI` 0.75.0 -> 0.76.0, `IronHive.Providers.OpenAI.Compatible` 0.75.0 -> 0.76.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.139.0 -> 0.140.0.
+- Re-pinned sibling package(s) `LMSupply.Generator` 0.140.0 -> 0.141.0.
 
 ## [0.19.0] - 2026-11-09
 
