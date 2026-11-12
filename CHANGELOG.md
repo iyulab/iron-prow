@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [Unreleased]
+## [0.20.0] - 2026-11-12
 
 ### Fixed
 - **`ProbeChatAsync` no longer reports a model that needs room to think as `ChatRefused`.** The probe asked for 16 output tokens and read every client error as «chat refused», so a reasoning model whose provider rejects a small output cap looked unreachable although a real chat works. A refusal of the body (HTTP 400 or 422) is now asked once more under `ByoPresets.ChatProbeRetryMaxOutputTokens` (2048) tokens and the retry's outcome is the result: `Ok` means a completion really happened, and a model that is refused under both caps is still `ChatRefused`. A route or model refusal (404, 405) is reported at once, as before, in one request.
