@@ -11,6 +11,7 @@ on:
       # bump merged with no CI run at all.
       - '**/*.props'
       - '**/*.targets'
+      - 'global.json'
       - '**/*.slnx'
       - '.github/workflows/ci.yml'
   pull_request:
@@ -23,6 +24,7 @@ on:
       # bump merged with no CI run at all.
       - '**/*.props'
       - '**/*.targets'
+      - 'global.json'
       - '**/*.slnx'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
