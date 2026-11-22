@@ -109,6 +109,30 @@ public class FallbackModelAndRenderRefusalTests
     }
 
     [Fact]
+    public async Task ServeModels_declares_names_for_a_candidate_an_adapter_registered()
+    {
+        var first = new RecordingClient(Http(HttpStatusCode.BadRequest, "first refuses"));
+        var second = new RecordingClient(null);
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        services.AddIronProw()
+            .AddProvider("openai", ProviderKind.Frontier, 100, _ => first)
+            .AddProvider("gpustack", ProviderKind.Lan, 50, _ => second)
+            .ServeModels("gpustack", "qwen3-8b")
+            .ServeModels("gpustack", "anthropic/claude-sonnet-5.5", "qwen3-8b")
+            .Configure(o => o.Resilience = new ResilienceOptions { MaxRetries = 0, BaseDelay = TimeSpan.Zero });
+        using var provider = Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(services);
+
+        var registry = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<IProviderRegistry>(provider);
+        registry.GetOrdered().Single(r => r.Id == "gpustack").ServedModels.Should().BeEquivalentTo(["qwen3-8b", "anthropic/claude-sonnet-5.5"]);
+        registry.GetOrdered().Single(r => r.Id == "openai").ServedModels.Should().BeNull();
+
+        var gateway = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<IChatClient>(provider);
+        await gateway.GetResponseAsync([new(ChatRole.User, "hi")], Named, TestContext.Current.CancellationToken);
+
+        second.ModelIds.Should().Equal("anthropic/claude-sonnet-5.5");
+    }
+
+    [Fact]
     public async Task FallbackKeepsModelId_sends_the_name_to_every_candidate()
     {
         var (_, second, registry) = TwoCandidates();

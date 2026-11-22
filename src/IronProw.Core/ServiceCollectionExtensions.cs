@@ -20,9 +20,22 @@ public static class ServiceCollectionExtensions
 
         services.TryAddSingleton<IProviderRegistry>(sp =>
         {
+            var served = sp.GetServices<ServedModelsMarker>()
+                .GroupBy(m => m.ProviderId, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.SelectMany(m => m.Models), StringComparer.Ordinal);
             var registry = new ProviderRegistry();
             foreach (var marker in sp.GetServices<ProviderRegistrationMarker>())
-                registry.Register(marker.Registration);
+            {
+                var registration = marker.Registration;
+                if (served.TryGetValue(registration.Id, out var models))
+                {
+                    registration = registration with
+                    {
+                        ServedModels = (registration.ServedModels ?? []).Concat(models).Distinct(StringComparer.Ordinal).ToArray(),
+                    };
+                }
+                registry.Register(registration);
+            }
             return registry;
         });
 

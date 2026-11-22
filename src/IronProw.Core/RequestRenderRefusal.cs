@@ -48,9 +48,10 @@ internal static partial class RequestRenderRefusal
         {
             return exception.GetRawResponse()?.Content?.ToString();
         }
-        catch (InvalidOperationException)
+        catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
         {
-            // An unbuffered response body cannot be read after the fact; the message is what there is.
+            // An unbuffered or disposed response body cannot be read after the fact; the message is what there is.
+            // (The classifier runs inside exception filters, so reading the body must never throw.)
             return null;
         }
     }
