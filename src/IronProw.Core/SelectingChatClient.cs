@@ -69,7 +69,9 @@ public sealed class SelectingChatClient : IChatClient
         IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         var list = messages as IReadOnlyList<ChatMessage> ?? messages.ToList();
-        var order = Arrange(selector.Order(new ChatSelectionContext(list, options, registry.GetOrdered())));
+        var selected = selector.Order(new ChatSelectionContext(list, options, registry.GetOrdered()));
+        var target = selected.Count > 0 ? selected[0].Id : null;
+        var order = Arrange(selected);
         if (order.Count == 0)
             throw new InvalidOperationException("No inference providers are registered.");
 
@@ -77,10 +79,11 @@ public sealed class SelectingChatClient : IChatClient
         for (var i = 0; i < order.Count; i++)
         {
             var reg = order[i];
-            var attemptClient = BuildAttempt(reg, i, order.Count);
+            var attemptOptions = OptionsFor(reg, target, options);
+            var attemptClient = BuildAttempt(reg, i, order.Count, attemptOptions?.ModelId);
             try
             {
-                var response = await attemptClient.GetResponseAsync(list, options, cancellationToken).ConfigureAwait(false);
+                var response = await attemptClient.GetResponseAsync(list, attemptOptions, cancellationToken).ConfigureAwait(false);
                 _health.RecordSuccess(reg.Id);
                 return response;
             }
@@ -95,10 +98,7 @@ public sealed class SelectingChatClient : IChatClient
                     throw;
                 _health.RecordFailure(reg.Id);
                 last = ex; // try next candidate
-                var isLast = i == order.Count - 1;
-                Report(new ProwTransition(
-                    isLast ? ProwTransitionKind.Exhausted : ProwTransitionKind.Fallback,
-                    reg.Id, i, order.Count, verdict, ex));
+                ReportLeaving(reg, i, order.Count, verdict, ex, attemptOptions?.ModelId);
             }
         }
         throw last ?? new InvalidOperationException("All providers failed.");
@@ -110,7 +110,9 @@ public sealed class SelectingChatClient : IChatClient
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var list = messages as IReadOnlyList<ChatMessage> ?? messages.ToList();
-        var order = Arrange(selector.Order(new ChatSelectionContext(list, options, registry.GetOrdered())));
+        var selected = selector.Order(new ChatSelectionContext(list, options, registry.GetOrdered()));
+        var target = selected.Count > 0 ? selected[0].Id : null;
+        var order = Arrange(selected);
         if (order.Count == 0)
             throw new InvalidOperationException("No inference providers are registered.");
 
@@ -122,8 +124,9 @@ public sealed class SelectingChatClient : IChatClient
         for (var i = 0; i < order.Count; i++)
         {
             var reg = order[i];
-            var attemptClient = BuildAttempt(reg, i, order.Count);
-            await using var enumerator = attemptClient.GetStreamingResponseAsync(list, options, cancellationToken)
+            var attemptOptions = OptionsFor(reg, target, options);
+            var attemptClient = BuildAttempt(reg, i, order.Count, attemptOptions?.ModelId);
+            await using var enumerator = attemptClient.GetStreamingResponseAsync(list, attemptOptions, cancellationToken)
                 .GetAsyncEnumerator(cancellationToken);
             var yielded = false;
             while (true)
@@ -146,10 +149,7 @@ public sealed class SelectingChatClient : IChatClient
                         throw;
                     _health.RecordFailure(reg.Id);
                     last = ex; // try next candidate
-                    var isLast = i == order.Count - 1;
-                    Report(new ProwTransition(
-                        isLast ? ProwTransitionKind.Exhausted : ProwTransitionKind.Fallback,
-                        reg.Id, i, order.Count, verdict, ex));
+                    ReportLeaving(reg, i, order.Count, verdict, ex, attemptOptions?.ModelId);
                     break; // dispose this enumerator, then advance to the next provider
                 }
                 if (!hasNext)
@@ -202,7 +202,27 @@ public sealed class SelectingChatClient : IChatClient
         return arranged;
     }
 
-    private ResilienceChatClient BuildAttempt(ProviderRegistration reg, int index, int total)
+    /// <summary>
+    /// The options one attempt is sent with: the request's own for the candidate it was meant for (the first in the
+    /// selector's order); for any other candidate, the same options without <see cref="ChatOptions.ModelId"/> unless
+    /// the candidate serves that name or <see cref="IronProwOptions.FallbackKeepsModelId"/> is set.
+    /// </summary>
+    private ChatOptions? OptionsFor(ProviderRegistration reg, string? target, ChatOptions? options)
+    {
+        if (options?.ModelId is not { } model
+            || _options.FallbackKeepsModelId
+            || string.Equals(reg.Id, target, StringComparison.Ordinal)
+            || reg.ServedModels?.Contains(model, StringComparer.Ordinal) == true)
+        {
+            return options;
+        }
+
+        var rebound = options.Clone();
+        rebound.ModelId = null;
+        return rebound;
+    }
+
+    private ResilienceChatClient BuildAttempt(ProviderRegistration reg, int index, int total, string? modelId)
     {
         var raw = reg.ClientFactory(services);
         var guarded = new GuardedChatClient(raw, guard);
@@ -210,9 +230,29 @@ public sealed class SelectingChatClient : IChatClient
         Action<int, Exception>? onRetry = _options.OnTransition is null
             ? null
             : (attempt, ex) => Report(new ProwTransition(
-                ProwTransitionKind.Retry, reg.Id, index, total, ErrorClassification.Retryable, ex, attempt));
+                ProwTransitionKind.Retry, reg.Id, index, total, ErrorClassification.Retryable, ex, attempt)
+            {
+                ModelId = modelId,
+                Reason = ReasonOf(ex),
+            });
         return new ResilienceChatClient(guarded, classifier, _options.Resilience, onRetry, _failureReaders);
     }
+
+    private void ReportLeaving(ProviderRegistration reg, int index, int total, ErrorClassification verdict, Exception ex, string? modelId)
+    {
+        if (_options.OnTransition is null)
+            return;
+        Report(new ProwTransition(
+            index == total - 1 ? ProwTransitionKind.Exhausted : ProwTransitionKind.Fallback,
+            reg.Id, index, total, verdict, ex)
+        {
+            ModelId = modelId,
+            Reason = ReasonOf(ex),
+        });
+    }
+
+    private static ProwFailureReason ReasonOf(Exception ex)
+        => RequestRenderRefusal.Matches(ex) ? ProwFailureReason.RequestNotRenderable : ProwFailureReason.Unknown;
 
     private void Report(ProwTransition transition)
     {

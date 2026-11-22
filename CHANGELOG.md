@@ -6,6 +6,13 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 
 ## [Unreleased]
 
+### Added
+- **`ProviderRegistration.ServedModels` and an `AddProvider(..., servedModels)` overload** declare the model names a candidate serves besides its default, and **`ProwTransition.ModelId` / `ProwTransition.Reason`** say which model name each provider was sent and why it refused when the gateway can tell (`ProwFailureReason.RequestNotRenderable`).
+
+### Changed
+- **Breaking by observation: a fallback candidate is sent the request without the first candidate's `ChatOptions.ModelId`.** The request's model name belongs to the candidate it was meant for (the first in the selector's order); another provider refuses it («unknown model», «model has no price»), so the fallback could not succeed. The candidate's client now uses its own default model unless the candidate lists the name in `ServedModels`. **Migration**: to send every candidate the name as before, set `IronProwOptions.FallbackKeepsModelId = true`; a candidate that serves the same name declares it with `ServedModels`.
+- **Breaking by observation: a 5xx whose text is a chat-template render error is not retried on the same provider.** Self-hosted servers (llama.cpp, GPUStack, vLLM, Ollama) answer a request their model's template cannot render with 500 and the template engine's message; `DefaultErrorClassifier` read that as transient and spent the retry budget on a refusal that repeats every time. It is now `FallbackEligible` (the next provider is tried at once) and the transition carries `Reason = RequestNotRenderable`. A plain 500 is still retried.
+
 ### Dependencies
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.141.0 -> 0.142.0.
 - Re-pinned sibling package(s) `LMSupply.Generator` 0.142.0 -> 0.143.0.

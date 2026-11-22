@@ -25,6 +25,20 @@ public sealed class IronProwBuilder
         return this;
     }
 
+    /// <summary>
+    /// Registers an inference provider candidate that also serves the listed model names, so a request naming one of
+    /// them keeps its <see cref="ChatOptions.ModelId"/> when it falls back to this candidate
+    /// (see <see cref="ProviderRegistration.ServedModels"/>).
+    /// </summary>
+    public IronProwBuilder AddProvider(
+        string id, ProviderKind kind, int priority, Func<IServiceProvider, IChatClient> factory, IReadOnlyCollection<string> servedModels)
+    {
+        ArgumentNullException.ThrowIfNull(servedModels);
+        _services.AddSingleton(new ProviderRegistrationMarker(
+            new ProviderRegistration(id, kind, priority, factory) { ServedModels = servedModels }));
+        return this;
+    }
+
     /// <summary>Replaces the guard implementation.</summary>
     public IronProwBuilder UseGuard(Func<IServiceProvider, IGuard> factory)
     {
@@ -43,7 +57,7 @@ public sealed class IronProwBuilder
     /// Enables per-tenant provider resolution by registering an <see cref="IIronProwFactory"/> (scoped).
     /// The <paramref name="resolver"/> maps an opaque tenant key to that tenant's provider set, using the
     /// supplied (request-scoped) <see cref="IServiceProvider"/> to reach per-request services such as an
-    /// already-decrypted workspace secret. Coexists with the single-tenant <see cref="AddProvider"/> path
+    /// already-decrypted workspace secret. Coexists with the single-tenant <see cref="AddProvider(string, ProviderKind, int, Func{IServiceProvider, IChatClient})"/> path
     /// without regression. Async secret loading must be done upstream (see <see cref="IIronProwFactory"/>).
     /// </summary>
     public IronProwBuilder AddTenantResolver(

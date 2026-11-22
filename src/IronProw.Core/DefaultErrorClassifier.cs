@@ -19,6 +19,10 @@ namespace IronProw.Core;
 /// An application that treats an unfunded account as the end of the chain decorates this classifier to return
 /// <see cref="ErrorClassification.Terminal"/> for 402.</description></item>
 /// </list>
+/// One exception to the rows above: a 5xx whose text is a chat-template render error (the server could not turn the
+/// request into the model's prompt - llama.cpp, GPUStack, vLLM, Ollama report these with the template engine's message)
+/// is <see cref="ErrorClassification.FallbackEligible"/>, not retried: it is deterministic for that request on that
+/// provider. The gateway reports it as <see cref="ProwFailureReason.RequestNotRenderable"/> on the transition.
 /// A consumer whose providers give a status a domain meaning (for example a local provider that answers 409 until a
 /// download is approved) decorates this classifier for those codes. After the per-provider retries are spent a
 /// retryable failure also degrades to the next provider.
@@ -59,7 +63,13 @@ public sealed class DefaultErrorClassifier : IErrorClassifier
         }
 
         if (HttpFailureReaders.Read(_readers, ex) is { } failure)
+        {
+            // A server that cannot render the request into the model's prompt says so in the body, often as a 500:
+            // the same request meets the same refusal, so it is not a transient fault to retry on this provider.
+            if (failure.StatusCode >= 500 && RequestRenderRefusal.Matches(ex))
+                return ErrorClassification.FallbackEligible;
             return ByStatus(failure);
+        }
 
         return ex switch
         {

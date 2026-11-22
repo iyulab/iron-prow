@@ -36,4 +36,33 @@ public sealed record ProwTransition(
     int TotalProviders,
     ErrorClassification Category,
     Exception? Error,
-    int Attempt = 0);
+    int Attempt = 0)
+{
+    /// <summary>
+    /// The model name the request was sent to <see cref="ProviderId"/> with, or null when it was sent without one (the
+    /// candidate's own default model - see <see cref="IronProwOptions.FallbackKeepsModelId"/>). Null for
+    /// <see cref="ProwTransitionKind.Skipped"/>. The model that finally answered is on the response's
+    /// <see cref="Microsoft.Extensions.AI.ChatResponse.ModelId"/>.
+    /// </summary>
+    public string? ModelId { get; init; }
+
+    /// <summary>
+    /// Why the provider refused, when the gateway can tell (see <see cref="ProwFailureReason"/>);
+    /// <see cref="ProwFailureReason.Unknown"/> otherwise.
+    /// </summary>
+    public ProwFailureReason Reason { get; init; }
+}
+
+/// <summary>A reason the gateway can read from a provider's failure, for a UI to name.</summary>
+public enum ProwFailureReason
+{
+    /// <summary>No reason the gateway recognizes.</summary>
+    Unknown = 0,
+
+    /// <summary>
+    /// The server could not render the request into the model's prompt (a chat-template error - for example a strict
+    /// template that refuses two messages of one role in a row). The same request meets the same refusal on that
+    /// provider, so it is not retried there (see <see cref="DefaultErrorClassifier"/>).
+    /// </summary>
+    RequestNotRenderable = 1,
+}

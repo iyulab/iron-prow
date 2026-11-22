@@ -16,4 +16,14 @@ public sealed record ProviderRegistration(
     string Id,
     ProviderKind Kind,
     int Priority,
-    Func<IServiceProvider, IChatClient> ClientFactory);
+    Func<IServiceProvider, IChatClient> ClientFactory)
+{
+    /// <summary>
+    /// Model names this candidate serves besides its client's default model (case-sensitive), or null when it
+    /// declares none. A request's <see cref="ChatOptions.ModelId"/> names the model of the candidate the request
+    /// was meant for; when the gateway falls back to another candidate it sends the request without that name -
+    /// so the candidate's own default model answers - unless the name is listed here. See
+    /// <see cref="IronProwOptions.FallbackKeepsModelId"/>.
+    /// </summary>
+    public IReadOnlyCollection<string>? ServedModels { get; init; }
+}

@@ -217,6 +217,7 @@ services.AddIronProw()
 | 520 · 522 · 524 | 같은 provider 에서 retry — provider 앞단 CDN(Cloudflare)의 게이트웨이 타임아웃(origin 응답 없음·연결 시간 초과·응답 시간 초과). 521 · 523(origin 다운·도달 불가) · 525 · 526(TLS)은 아래 «그 밖» |
 | 429 · 503 | provider 가 retry 힌트(`Retry-After` / `retry-after-ms`)를 보냈으면 그만큼 기다려 retry(`MaxRetryAfter` 초과면 retry 없이 다음 provider), 없으면 즉시 다음 provider |
 | 그 밖(400 · 401 · 403 · 404 · 409 …) | 다음 provider (한 provider 의 거절은 다른 provider 도 거절한다는 증거가 아니다) |
+| 5xx 인데 본문이 chat template 렌더 오류(llama.cpp·GPUStack 의 `While executing … at line N`, vLLM 의 `TemplateError`, `raise_exception`, `roles must alternate`, Ollama 의 `template: …: executing`, «apply/render chat template» 실패) | retry 없이 다음 provider — 같은 요청은 같은 provider 에서 매번 같은 거절을 받는다. 전환 이벤트의 `Reason` 이 `ProwFailureReason.RequestNotRenderable` |
 
 retry 를 다 쓴 실패도 다음 provider 로 넘어간다. 상태에 도메인 의미를 주는 provider(예: 다운로드 승인 전까지 409 를 내는 로컬 provider)는 소비자가 `IErrorClassifier` 를 데코레이트해 그 코드만 다르게 분류한다. 다른 예외 타입이 HTTP 실패를 나르면 `IHttpFailureReader` 를 `TryAddEnumerable` 로 등록한다.
 
@@ -261,7 +262,9 @@ sealed class ShortRequestsStayLocal : IProviderSelector
 }
 ```
 
-`OnTransition`(선택)은 각 게이트웨이 전환(retry / fallback / exhausted / skipped)마다 호출되는 best-effort 콜백이다. 소비자가 어느 provider로 강등됐는지 UI에 표시(예: resilience 칩)할 수 있다. 콜백이 던지는 예외는 삼켜지며 추론을 절대 깨지 않는다. 미설정 시 동작은 기존과 동일(무보고).
+`OnTransition`(선택)은 각 게이트웨이 전환(retry / fallback / exhausted / skipped)마다 호출되는 best-effort 콜백이다. 소비자가 어느 provider로 강등됐는지 UI에 표시(예: resilience 칩)할 수 있다. 콜백이 던지는 예외는 삼켜지며 추론을 절대 깨지 않는다. 미설정 시 동작은 기존과 동일(무보고). 전환의 `ModelId` 는 그 provider 에 보낸 모델 이름(null = 그 provider 의 기본 모델), `Reason` 은 게이트웨이가 읽어 낸 거절 이유(`ProwFailureReason`)다. 끝내 답한 모델은 응답의 `ChatResponse.ModelId` 에 있다.
+
+**fallback 과 모델 이름**: 요청의 `ChatOptions.ModelId` 는 그 요청이 향한 provider(선택기 순서의 첫 후보)의 모델 이름이다. 다른 후보로 fallback 할 때 게이트웨이는 그 이름을 빼고 보낸다 — 다른 provider 는 그 이름을 모르거나(«unknown model») 거절해(«model has no price») fallback 이 성공할 수 없기 때문이다. 그 후보의 클라이언트가 자기 기본 모델로 답한다. 후보가 같은 이름을 서빙하면 `AddProvider(id, kind, priority, factory, servedModels: ["…"])`(또는 `ProviderRegistration { ServedModels = … }`)로 알리면 이름을 유지한다. 모든 후보에 이름을 그대로 보내려면 `opt.FallbackKeepsModelId = true`.
 
 **스트리밍 동등성**: retry·fallback은 `GetResponseAsync`와 `GetStreamingResponseAsync` 양쪽에 동일하게 적용된다. 스트리밍의 복원력 창은 **"첫 `ChatResponseUpdate`가 yield되기 전"** 이다 — 첫 청크 이전에 발생한 실패(예: OpenAI 호환 호출이 첫 `MoveNextAsync`에서 던지는 connection-refused / 404 / model-not-found)는 same-provider retry(Retryable) 또는 next-provider fallback(FallbackEligible)으로 처리된다. 첫 청크가 emit된 뒤의 실패는 provider를 바꾸면 이중 emit이 되므로 그대로 전파된다.
 
