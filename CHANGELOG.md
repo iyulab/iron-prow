@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [Unreleased]
+## [0.21.0] - 2026-11-23
 
 ### Added
 - **`IronProwBuilder.ServeModels(providerId, ...)` and `ProviderRegistration.ServedModels`** declare the model names a candidate serves besides its default (for a candidate any adapter registered), and **`ProwTransition.ModelId` / `ProwTransition.Reason`** say which model name each provider was sent and why it refused when the gateway can tell (`ProwFailureReason.RequestNotRenderable`).
